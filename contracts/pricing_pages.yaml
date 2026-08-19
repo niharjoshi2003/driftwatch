@@ -1,0 +1,145 @@
+collector: pricing_pages
+version: "1.0"
+notes: >
+  Anchors verified Aug 12 2026 via Bright Data scrape. Linear is the primary
+  demo vendor. Descriptions are production input for heal prompts.
+  vendor is required on every row: preview_result omits input/URL, so
+  level-4 anchors key on vendor + tier_name.
+
+fields:
+  - name: vendor
+    description: >
+      The short product brand for this pricing page — the common name users
+      say, as shown in the page title or logo text. Examples: Linear, Railway,
+      Sentry, Netlify. Do not use legal entity names (Inc, LLC) or taglines.
+    type: string
+    parser: non_empty_string
+    max_length: 80
+    expected_null_rate: 0.0
+    sparse_prone: false
+    critical: true
+    anchors:
+      - vendor: Linear
+        tier_name: Free
+        expected: Linear
+      - vendor: Railway
+        tier_name: Free
+        expected: Railway
+      - vendor: Sentry
+        tier_name: Developer
+        expected: Sentry
+      - vendor: Netlify
+        tier_name: Free
+        expected: Netlify
+
+  - name: tier_name
+    description: >
+      The exact display name of one pricing tier or plan column on the page,
+      taken from that tier's card heading. Use the label as printed
+      (Free, Basic, Hobby, Pro, Team, Business, Enterprise, Personal,
+      Developer). One row per tier; do not invent tiers that are not shown.
+    type: string
+    parser: non_empty_string
+    max_length: 60
+    expected_null_rate: 0.0
+    sparse_prone: false
+    critical: true
+    anchors:
+      - vendor: Linear
+        expected: ["Free", "Basic", "Business", "Enterprise"]
+
+  - name: tier_price_monthly
+    description: >
+      The numeric monthly price shown on this tier's card in the page currency.
+      For per-user plans (e.g. Linear Basic "$10 per user/month"), store the
+      per-user monthly number (10), even if the page says billed yearly.
+      For minimum-usage plans (e.g. Railway Hobby "$5 minimum usage"), store
+      that plan floor (5). Leave empty for Enterprise/Custom/Contact sales
+      tiers with no public number. Do not scrape usage-meter micro-prices
+      (per GB-second, per request) as the tier price.
+    type: number
+    parser: currency
+    plausible_range: [0, 10000]
+    expected_null_rate: 0.20
+    sparse_prone: true
+    critical: true
+    anchors:
+      - vendor: Linear
+        tier_name: Basic
+        expected: 10.00
+      - vendor: Linear
+        tier_name: Business
+        expected: 16.00
+      - vendor: Railway
+        tier_name: Hobby
+        expected: 5.00
+      - vendor: Sentry
+        tier_name: Team
+        expected: 26.00
+      - vendor: Netlify
+        tier_name: Pro
+        expected: 20.00
+
+  - name: currency
+    description: >
+      ISO 4217 currency code for the prices on this page. Infer from the
+      symbol or label on the pricing cards ($ → USD, € → EUR, £ → GBP).
+    type: string
+    parser: enum
+    enum_values: [USD, EUR, GBP, INR, CAD, AUD]
+    expected_null_rate: 0.0
+    sparse_prone: false
+    critical: false
+    anchors:
+      - vendor: Linear
+        tier_name: Basic
+        expected: USD
+
+  - name: billing_period
+    description: >
+      Whether the displayed numeric price is labeled as monthly or annual
+      billing. Use "monthly" or "annual".
+    type: string
+    parser: enum
+    enum_values: [monthly, annual]
+    expected_null_rate: 0.05
+    sparse_prone: false
+    critical: false
+    anchors: []
+
+  - name: is_custom_pricing
+    description: >
+      True when the tier has no public numeric list price and instead shows
+      Custom, Contact sales, Contact us, or similar. False when a number is
+      shown, including Free at 0.
+    type: boolean
+    parser: boolean
+    expected_null_rate: 0.0
+    sparse_prone: false
+    critical: false
+    anchors:
+      - vendor: Linear
+        tier_name: Enterprise
+        expected: true
+      - vendor: Sentry
+        tier_name: Enterprise
+        expected: true
+
+  - name: features
+    description: >
+      Feature bullet lines listed inside this tier's pricing card only.
+    type: array
+    parser: string_array
+    expected_null_rate: 0.10
+    sparse_prone: true
+    critical: false
+    anchors: []
+
+  - name: scraped_at
+    description: ISO 8601 timestamp when this row was extracted.
+    type: string
+    parser: iso_date
+    expected_null_rate: 0.0
+    sparse_prone: false
+    critical: false
+    anchors: []

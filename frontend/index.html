@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Driftwatch</title>
+  <style>
+    :root { --bg:#0e1116; --card:#171b22; --line:#2a3140; --text:#e8edf5; --muted:#8b97a8; --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c542; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:var(--bg); color:var(--text); }
+    header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+    h1 { font-size:16px; margin:0; letter-spacing:.04em; }
+    button { background:#243044; color:var(--text); border:1px solid var(--line); padding:8px 12px; cursor:pointer; }
+    button:hover { border-color:#4d5d78; }
+    main { display:grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 56px); }
+    aside { border-right:1px solid var(--line); padding:12px; overflow:auto; }
+    .inc { padding:10px; border:1px solid var(--line); margin-bottom:8px; cursor:pointer; background:var(--card); }
+    .inc.active { border-color:#5b8def; }
+    .state { color:var(--warn); }
+    .state.closed_healed { color:var(--ok); }
+    .state.escalated { color:var(--bad); }
+    article { padding:20px 28px; overflow:auto; }
+    .tl { border-left:2px solid var(--line); margin-left:8px; padding-left:16px; }
+    .ev { margin:0 0 18px; }
+    .ev time { color:var(--muted); font-size:12px; }
+    pre { background:var(--card); border:1px solid var(--line); padding:12px; overflow:auto; white-space:pre-wrap; }
+    .muted { color:var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DRIFTWATCH · content vs structure</h1>
+    <div>
+      <button id="run">Trigger run</button>
+      <span id="meta" class="muted"></span>
+    </div>
+  </header>
+  <main>
+    <aside id="list"></aside>
+    <article id="detail"><p class="muted">Select an incident. This screen is the audit trail.</p></article>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    async function j(url, opts){ const r = await fetch(url, opts); return r.json(); }
+    async function refresh() {
+      const h = await j('/api/v1/health');
+      $('meta').textContent = (h.fixture_mode ? 'FIXTURE_MODE ' : 'LIVE ') + (h.collector_id || 'no collector');
+      const items = await j('/api/v1/incidents');
+      $('list').innerHTML = items.map(i =>
+        `<div class="inc" data-id="${i.id}"><div>#${i.id} ${i.host}</div><div class="state ${i.state}">${i.state}</div></div>`
+      ).join('') || '<p class="muted">No incidents yet. Trigger a run.</p>';
+      document.querySelectorAll('.inc').forEach(el => el.onclick = () => open(el.dataset.id));
+    }
+    async function open(id) {
+      document.querySelectorAll('.inc').forEach(e => e.classList.toggle('active', e.dataset.id===id));
+      const d = await j('/api/v1/incidents/'+id);
+      $('detail').innerHTML = `
+        <h2>Incident ${d.id} · ${d.host}</h2>
+        <p>state=<span class="state ${d.state}">${d.state}</span> outcome=${d.outcome || '—'} attempts=${d.attempt_count}</p>
+        <h3>Timeline</h3>
+        <div class="tl">${(d.timeline||[]).map(t => `<div class="ev"><div><strong>${t.state}</strong></div><time>${t.at||''}</time><div class="muted">${t.note||''}</div></div>`).join('')}</div>
+        <h3>Detection evidence</h3>
+        <pre>${pretty(d.detection_evidence)}</pre>
+        ${(d.attempts||[]).map(a => `
+          <h3>Attempt ${a.attempt_number} · ${a.decision} · ${a.prompt_length} chars</h3>
+          <pre>${esc(a.prompt||'')}</pre>
+          <h4>Validation</h4>
+          <pre>${pretty(a.validation_report)}</pre>
+        `).join('')}
+      `;
+    }
+    function pretty(s){ try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s||''; } }
+    function esc(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    $('run').onclick = async () => { $('run').disabled = true; try { await j('/api/v1/runs/trigger', {method:'POST'}); await refresh(); } finally { $('run').disabled = false; } };
+    refresh();
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "product": "Driftwatch",
+  "run": {
+    "collector_id": "c_mt0h7usvdesnctj3q",
+    "collection_id": "j_example",
+    "hosts": ["linear.app"],
+    "row_count": 4
+  },
+  "rows": [
+    {"vendor": "Linear", "tier_name": "Free", "tier_price_monthly": 0, "currency": "USD", "is_custom_pricing": false},
+    {"vendor": "Linear", "tier_name": "Basic", "tier_price_monthly": 10, "currency": "USD", "is_custom_pricing": false},
+    {"vendor": "Linear", "tier_name": "Business", "tier_price_monthly": 16, "currency": "USD", "is_custom_pricing": false},
+    {"vendor": "Linear", "tier_name": "Enterprise", "tier_price_monthly": null, "currency": "USD", "is_custom_pricing": true}
+  ],
+  "classification": {
+    "host": "linear.app",
+    "verdict": "healthy",
+    "reason": "Enterprise empty price is sparse_prone, fill ~0.75"
+  },
+  "incident": null
+}
