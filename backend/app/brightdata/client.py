@@ -56,13 +56,7 @@ class BrightDataClient:
         raise TimeoutError(f"dataset {collection_id} not ready in {timeout_s}s")
 
     def heal(self, collector_id: str, prompt: str, url: str) -> dict[str, Any]:
-        # CLI is the documented path; wrap via subprocess in a later pass if needed.
-        r = self._http.post(
-            f"{API}/datasets/v3/scrape",
-            headers=self._headers(),
-            json={"placeholder": True},
-        )
-        raise NotImplementedError("use heal_via_cli")
+        raise NotImplementedError("heal goes through the Bright Data CLI, not this HTTP client")
 
     def close(self) -> None:
         self._http.close()
