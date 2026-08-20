@@ -1,7 +1,12 @@
-# Driftwatch — pin the product collector. Never reuse the HN throwaway c_msm3xrpc7r50hnnob.
+# Driftwatch — pin the product collector.
 
-SCRAPER_STUDIO_COLLECTOR_ID=c_mt0hn92ue1oi96zqi
-PRICING_SCRAPER_USAGE=brightdata scraper run c_mt0hn92ue1oi96zqi <url> --pretty
+# Failed Linear creates (do not run):
+#   c_mt0h7usvdesnctj3q
+#   c_mt0hn92ue1oi96zqi
+# HN throwaway (do not reuse): c_msm3xrpc7r50hnnob
 
-First create `c_mt0h7usvdesnctj3q` failed at code_generator. This is retry `pricing_pages_v2`.
-Never reuse HN throwaway `c_msm3xrpc7r50hnnob`.
+# Official demo-store create (shopalto.xyz, two fields: name + price)
+SCRAPER_STUDIO_COLLECTOR_ID=c_mt0hvfomh2bmennhd
+PRICING_SCRAPER_USAGE=brightdata scraper run c_mt0hvfomh2bmennhd https://shopalto.xyz/product/aurora-wireless-headphones --pretty
+
+Reference: https://github.com/anil-bd/scraper-studio-scrape-verse-hackathon-august-2026

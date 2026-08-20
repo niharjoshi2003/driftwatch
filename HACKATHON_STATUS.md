@@ -20,10 +20,10 @@ Deadline: Sunday 23 Aug. Form: https://bit.ly/4xmOMsr
 - README with Scraper Studio + AI disclosure + example JSON
 - FIXTURE_MODE default so you can demo the loop without spending credits
 
-## You must still do
+## Still open (Thu night)
 
-1. `brightdata scraper create` with `contracts/create_prompt.txt` (5–25 min, credits)
-2. Pin `c_…` in `.cursor/rules/collector.mdc` and `.env`
-3. First live run of the 10 URLs; per-host fill rate; Browser worker if 0%
-4. One real heal → verification → `closed_healed` before Saturday
-5. Promo `wemakedevs`, Discord, OBS 30s playback, submit form + video
+- Shopalto collector **created and run:** `c_mt0hvfomh2bmennhd` — [control panel](https://brightdata.com/cp/scrapers/c_mt0hvfomh2bmennhd). First row: Aurora headphones, **$172.40 USD**.
+- Next: heal in place (description / image / rating); validate preview; approve; re-run; then batch `contracts/shopalto_urls.json`.
+- Self-hosted break page before Saturday. Promo `wemakedevs`, Discord, OBS, form https://bit.ly/4xmOMsr
+
+Official prompts: https://github.com/anil-bd/scraper-studio-scrape-verse-hackathon-august-2026

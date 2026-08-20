@@ -5,16 +5,19 @@ Change intelligence for public SaaS pricing pages. Every scrape answers one ques
 A price moving $29 → $39 is news (insight). A price moving $29 → empty because a class name moved is breakage (incident + heal). One engine emits both.
 
 **Event:** Into the Scrape-Verse (WeMakeDevs × Bright Data), 17–23 Aug 2026.  
+**Official coding-agent prompts:** [anil-bd/scraper-studio-scrape-verse-hackathon-august-2026](https://github.com/anil-bd/scraper-studio-scrape-verse-hackathon-august-2026)  
 **Repo created:** 20 Aug 2026 (contest week; prep notes lived in a separate private repo).
 
 ## How Bright Data Scraper Studio is used
 
-This is load-bearing. Remove Scraper Studio and there is no product.
+This is load-bearing. Remove Scraper Studio and there is no product. We follow the official prompt order: library check → **minimal create** → run → **heal in place** → approve → batch.
 
-1. **Create** — `brightdata scraper create` from this repo using `contracts/create_prompt.txt` (Discovery scraper, one URL → N tier rows). Collector ID is pinned in `.cursor/rules/collector.mdc`. The Hacker News throwaway collector `c_msm3xrpc7r50hnnob` is **not** reused.
-2. **Collection API** — `POST /dca/trigger` with the ten-URL body in `contracts/day1_urls.json`, then poll `GET /dca/dataset?id=j_*`. All HTTP lives in `backend/app/brightdata/client.py`.
-3. **AI Flow** — `brightdata scraper heal` / `approve` / `approve --reject`. Preview is **one row** and **omits `input`**, so we never join anchors on URL.
-4. **Fixture replay** — `FIXTURE_MODE=true` replays JSON captured before kickoff (`backend/tests/fixtures/`). Those files are API responses, not contest application code.
+1. **Create (minimal)** — Linear pricing `scraper create` failed twice at `code_generator`. Per the official README, we then built against the public demo store `https://shopalto.xyz/product/aurora-wireless-headphones` with **two fields only** (name, price). Collector ID is pinned in `.cursor/rules/collector.mdc`. Do **not** reuse HN throwaway `c_msm3xrpc7r50hnnob` or the failed Linear IDs.
+2. **Run** — `brightdata scraper run <id> <url> --pretty`. Expect one row with name and price.
+3. **Heal** — same Collector ID, add description / image url / rating. Driftwatch **validates** `preview_result` (never `--auto-approve` on faith). Preview is one row and omits `input`.
+4. **Batch** — same ID, ten shopalto URLs in `contracts/shopalto_urls.json` (official Step 4). SaaS pricing URLs remain in `contracts/day1_urls.json` if a pricing collector later succeeds.
+5. **Undeniable heal (DEMO-IDEAS)** — host a page we control, break a class, film the repair. Collection API for scheduled runs: `POST /dca/trigger` + `GET /dca/dataset` in `backend/app/brightdata/client.py`.
+6. **Fixture replay** — `FIXTURE_MODE=true` uses pre-kickoff JSON in `backend/tests/fixtures/`.
 
 ## Detection methodology
 

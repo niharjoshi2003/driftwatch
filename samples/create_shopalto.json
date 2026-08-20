@@ -1,0 +1,1 @@
+{"collector_id":"c_mt0hvfomh2bmennhd","name":"shopalto_products","status":"done","completed_steps":["prepare_intent_analyzer","planner","collector_mainatiner","output_schema_generator","code_generator","input_schema_generator","preview_runner","preview_picker"],"view_url":"https://brightdata.com/cp/scrapers/c_mt0hvfomh2bmennhd","created_at":"2026-08-19T19:38:37.990Z"}
