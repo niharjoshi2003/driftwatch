@@ -52,7 +52,7 @@ def classify_host(
     current_rows: list[dict[str, Any]],
     previous_rows: list[dict[str, Any]] | None,
     registry: ContractRegistry,
-    baseline_fill: dict[str, float],
+    baseline_fill: dict[str, tuple[float, int]],
     *,
     z_threshold: float,
     min_effect: float,
@@ -71,9 +71,11 @@ def classify_host(
         flag = False
         mal_struct = mal > 0.5
         if has_baseline and base is not None and n > 0:
-            z = two_proportion_z(base, 100, fill, n)
-            effect = base - fill
-            flag = (z > z_threshold and effect > min_effect) or mal_struct
+            p_base, n_base = base
+            z = two_proportion_z(p_base, n_base, fill, n)
+            effect = p_base - fill
+            collapse = fill == 0 and effect > min_effect
+            flag = (z > z_threshold and effect > min_effect) or mal_struct or collapse
         elif mal_struct:
             flag = True
         sig = FieldSignal(
@@ -82,7 +84,7 @@ def classify_host(
             fill_rate=fill,
             malformed_rate=mal,
             n_rows=n,
-            baseline=base,
+            baseline=None if base is None else base[0],
             z=z,
             effect=effect,
             flagged=flag,
@@ -187,15 +189,17 @@ def _content_insights(
 
 
 def next_baselines(
-    baseline_fill: dict[str, float],
+    baseline_fill: dict[str, tuple[float, int]],
     host: str,
     rows: list[dict[str, Any]],
     registry: ContractRegistry,
     alpha: float,
-) -> dict[str, float]:
+) -> dict[str, tuple[float, int]]:
     out = dict(baseline_fill)
     for name in registry.schema_names():
-        fill, _, _ = _fill_and_malformed(rows, name)
+        fill, _, n_rows = _fill_and_malformed(rows, name)
         key = f"{host}:{name}"
-        out[key] = ewma(out.get(key), fill, alpha)
+        prev = out.get(key)
+        prev_fill = prev[0] if prev else None
+        out[key] = (ewma(prev_fill, fill, alpha), n_rows)
     return out

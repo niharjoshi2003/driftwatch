@@ -106,7 +106,7 @@ def ingest_and_detect(session: Session, settings: Settings, *, urls: list[dict[s
             )
     session.commit()
 
-    baselines = {b.key: b.fill_rate for b in session.query(Baseline).all()}
+    baselines = {b.key: (b.fill_rate, int(b.n_rows or 0)) for b in session.query(Baseline).all()}
     prior_runs = session.query(Run).filter(Run.status == "ok", Run.id != run.id).count()
     has_baseline = prior_runs >= 1
 
@@ -161,12 +161,13 @@ def ingest_and_detect(session: Session, settings: Settings, *, urls: list[dict[s
         elif c.verdict == "ambiguous":
             _open_incident(session, settings, collector_id, host, c, registry, auto_heal=False)
 
-    for key, val in baselines.items():
+    for key, (fill, n_rows) in baselines.items():
         row = session.get(Baseline, key)
         if row is None:
-            session.add(Baseline(key=key, fill_rate=val, updated_at=utcnow()))
+            session.add(Baseline(key=key, fill_rate=fill, n_rows=n_rows, updated_at=utcnow()))
         else:
-            row.fill_rate = val
+            row.fill_rate = fill
+            row.n_rows = n_rows
             row.updated_at = utcnow()
     session.commit()
     return {"run_id": run.id, "collection_id": collection_id, "row_count": run.row_count, "hosts": results}

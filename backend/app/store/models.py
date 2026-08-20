@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, create_engine, select
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, create_engine, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -100,6 +100,7 @@ class Baseline(Base):
     __tablename__ = "baselines"
     key: Mapped[str] = mapped_column(String, primary_key=True)
     fill_rate: Mapped[float] = mapped_column(Float)
+    n_rows: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -112,6 +113,10 @@ def make_engine(url: str):
         url = f"sqlite:///{path.as_posix()}"
     engine = create_engine(url, future=True)
     Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        cols = {row[1] for row in conn.execute(text("PRAGMA table_info(baselines)"))}
+        if "n_rows" not in cols:
+            conn.execute(text("ALTER TABLE baselines ADD COLUMN n_rows INTEGER DEFAULT 0"))
     return engine
 
 
