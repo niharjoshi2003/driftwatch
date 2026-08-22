@@ -1,29 +1,42 @@
-# Contest build status — 20 Aug 2026 (Thu, day 4 of 7)
+# Build status — 22 August 2026
 
-Deadline: Sunday 23 Aug. Form: https://bit.ly/4xmOMsr
+Deadline Sunday 23 August. Form: <https://bit.ly/4xmOMsr>
 
-## Already done before this repo (prep, 9–16 Aug)
+## Done
 
-- Bright Data CLI 0.3.3, login, zones, MCP, HN spike fixtures
-- Architecture, playbook, 10-URL list, robots checks, field contracts
-- Preview gating (1-row, vendor+tier anchors), eval spec of 8 cases
-- Private notes repo: https://github.com/niharjoshi2003/driftwatch-prep
-- OBS portable on D: (mic test still on you)
-- C: disk space recovered (~24 GB) by moving Downloads to E: and apps to D:
+**Prep, 9–16 August** (separate private notes repo, no application code)
+Bright Data CLI, login, zones, MCP server, agent skills. Architecture and field
+contracts. Ten verified public pricing URLs with robots.txt checked. Hacker News
+spike producing six real API envelopes, used as offline fixtures. Preview-gating
+decision and the eight-case classifier evaluation spec.
 
-## Done tonight (product at D:\dev\driftwatch)
+**Contest week**
+- Collector `c_mt0hvfomh2bmennhd` (`shopalto_products`) created, run, healed in
+  place to add `description`, `image_url`, `rating`, preview validated, approved,
+  re-run. Envelopes in `samples/`.
+- FastAPI backend: ingest with three-way field classification, YAML contracts and
+  parsers, EWMA baseline and two-proportion z-test, classifier, 1,000-character
+  prompt composer, five-level preview validator, incident state machine, SQLite.
+- Incident timeline UI at `/`.
+- Tests: parsers, composer, validator, eight labelled classifier cases.
+- `FIXTURE_MODE` replay so the loop runs without spending credits.
+- README with detection methodology, Scraper Studio usage, honest gating table,
+  published known misclassification, and AI disclosure.
+- Example output generated from captured responses rather than hand-written.
 
-- Empty git repo + venv at D:\dev\venvs\driftwatch
-- FastAPI ingest / normalizer / EWMA+z classifier / prompt composer / 5-level validator / SQLite
-- Incident timeline UI at /
-- Pytest: parsers, 8 classifier cases, validator, composer
-- README with Scraper Studio + AI disclosure + example JSON
-- FIXTURE_MODE default so you can demo the loop without spending credits
+## Remaining before submission
 
-## Still open (Thu night)
+- [ ] Push `samples/heal_shopalto.json`, `samples/approve_shopalto.json`,
+      `samples/run_shopalto_after_heal.json` — the heal evidence is still local
+- [ ] Re-run `python samples/build_example_output.py` so `stage` becomes `post_heal`
+- [ ] Record the demo video — `docs/demo-script.md` has the shot list
+- [ ] Add the video link to the README
+- [ ] Submit, Sunday morning
 
-- Shopalto collector **created and run:** `c_mt0hvfomh2bmennhd` — [control panel](https://brightdata.com/cp/scrapers/c_mt0hvfomh2bmennhd). First row: Aurora headphones, **$172.40 USD**.
-- Next: heal in place (description / image / rating); validate preview; approve; re-run; then batch `contracts/shopalto_urls.json`.
-- Self-hosted break page before Saturday. Promo `wemakedevs`, Discord, OBS, form https://bit.ly/4xmOMsr
+## Known limitations, stated in the README
 
-Official prompts: https://github.com/anil-bd/scraper-studio-scrape-verse-hackathon-august-2026
+AI Flow endpoints not wired in-process; heals run through the CLI. The live
+target is a product page because Linear's `create` failed twice at
+`code_generator`. The demonstrated heal adds fields rather than repairing a
+break. Baseline window shortened because the build started on 20 August.
+Classifier case 8 is a known miss and the number is published.
