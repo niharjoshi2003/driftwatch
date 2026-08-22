@@ -258,12 +258,28 @@ def _open_incident(session: Session, settings: Settings, collector_id: str, host
     return inc
 
 
+def _incident_fields(inc: Incident) -> list[str]:
+    """The fields an incident was opened for, stored as JSON or as a bare list."""
+    raw = inc.fields or ""
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return [p.strip() for p in raw.split(",") if p.strip()]
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list):
+        return [str(v) for v in value if v]
+    return []
+
+
 def apply_preview(session: Session, settings: Settings, incident_id: int, preview_rows: list[dict[str, Any]], *, verification_healthy: bool) -> Incident:
     registry = load_contracts(settings.contracts_path)
     inc = session.get(Incident, incident_id)
     if inc is None:
         raise KeyError(incident_id)
-    report = validate_preview(preview_rows, registry)
+    # The preview is judged against the fields that opened this incident, so a
+    # heal that returns without them is rejected instead of silently approved.
+    report = validate_preview(preview_rows, registry, required_fields=_incident_fields(inc))
     inc.attempt_count += 1
     prompt = compose_prompt(inc.host, [], registry.by_name())
     session.add(

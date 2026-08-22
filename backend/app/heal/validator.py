@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -45,28 +46,65 @@ def validate_preview(
     *,
     fill_tolerance: float = 0.10,
     previous_healthy_row: dict[str, Any] | None = None,
+    required_fields: Sequence[str] | None = None,
 ) -> ValidationReport:
+    """Check a heal preview before anyone is allowed to approve it.
+
+    required_fields is what this particular heal was asked to restore, normally
+    the fields that opened the incident. A preview that comes back without them
+    has not done the job, however well-formed the rest of it looks.
+    """
     levels: list[LevelResult] = []
     contracts = registry.by_name()
     n = len(preview_rows)
     row0 = preview_rows[0] if preview_rows else {}
 
-    # L1 schema — required vendor + known field types
+    # L1 schema — vendor, the fields that can never legitimately be absent, and
+    # whatever this heal was asked to restore.
+    #
+    # A sparse_prone field is allowed to be missing, because some tiers really
+    # have no monthly price. It stops being allowed the moment this heal was
+    # requested to bring it back: then its absence is the heal failing silently.
     missing_vendor = False
     schema_ok = n >= 1
     if n == 0:
         schema_ok = False
         detail = "preview_result empty"
     else:
+        must_have = [
+            c.name for c in registry.fields
+            if c.critical and not c.sparse_prone and c.name != "vendor"
+        ]
+        for name in required_fields or []:
+            if name != "vendor" and name not in must_have:
+                must_have.append(name)
+
+        absent: list[str] = []
         for r in preview_rows:
             v = r.get("vendor")
             if v is None or v == "":
                 missing_vendor = True
                 schema_ok = False
-        extra = ""
+            for name in must_have:
+                if r.get(name) in (None, "") and name not in absent:
+                    absent.append(name)
+        if absent:
+            schema_ok = False
+
+        parts: list[str] = []
+        if missing_vendor:
+            parts.append("vendor missing on a preview row.")
+        if absent:
+            parts.append(
+                "absent from the preview: " + ", ".join(absent)
+                + ". a field that cannot legitimately be null, or one this heal was"
+                " asked to restore, may not be missing."
+            )
+        if not parts:
+            parts.append("schema keys usable.")
         if "input" not in row0:
-            extra = " preview omits input (expected); anchors must use vendor+tier_name."
-        detail = ("vendor missing on a preview row." if missing_vendor else "schema keys usable.") + extra
+            parts.append("preview omits input (expected); anchors must use vendor+tier_name.")
+        detail = " ".join(parts)
     levels.append(LevelResult(1, "schema", schema_ok, detail, "must"))
 
     # L2 conformance
@@ -155,13 +193,24 @@ def validate_preview(
         prev_v, prev_t = _row_vendor_tier(previous_healthy_row)
         cur_v, cur_t = _row_vendor_tier(preview_rows[0])
         if prev_v and cur_v and prev_v.lower() == cur_v.lower():
+            notes: list[str] = []
+            # A field the collector used to return and the preview no longer does
+            # is the regression this project exists to catch, visible before approval.
+            lost = sorted(
+                name for name, value in previous_healthy_row.items()
+                if name != "input"
+                and value not in (None, "")
+                and preview_rows[0].get(name) in (None, "")
+            )
+            if lost:
+                l5_pass = False
+                notes.append("lost against the last healthy row: " + ", ".join(lost))
             # garbage tier_name while price looks fixed
             if previous_healthy_row.get("tier_name") and preview_rows[0].get("tier_name"):
                 if str(preview_rows[0]["tier_name"]) in {"", "null", "undefined"}:
                     l5_pass = False
-                    l5_detail = "tier_name destroyed on preview row"
-                else:
-                    l5_detail = "no collateral damage on sample row"
+                    notes.append("tier_name destroyed on preview row")
+            l5_detail = "; ".join(notes) or "no collateral damage on sample row"
     levels.append(LevelResult(5, "collateral", l5_pass, l5_detail, "soft"))
 
     must = all(l.passed for l in levels if l.gating == "must")

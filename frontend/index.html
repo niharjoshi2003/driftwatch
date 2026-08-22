@@ -1,161 +1,786 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Driftwatch</title>
-  <style>
-    :root { --bg:#0e1116; --card:#171b22; --line:#2a3140; --text:#e8edf5; --muted:#8b97a8; --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c542; --accent:#5b8def; }
-    * { box-sizing: border-box; }
-    body { margin:0; font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:var(--bg); color:var(--text); }
-    header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:16px; }
-    h1 { font-size:16px; margin:0; letter-spacing:.04em; }
-    h2 { font-size:15px; margin:0 0 4px; }
-    h3 { font-size:13px; margin:22px 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
-    h4 { font-size:12px; margin:12px 0 6px; color:var(--muted); }
-    button { background:#243044; color:var(--text); border:1px solid var(--line); padding:8px 12px; cursor:pointer; font:inherit; }
-    button:hover:not(:disabled) { border-color:#4d5d78; }
-    button:disabled { opacity:.5; cursor:default; }
-    main { display:grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 57px); }
-    aside { border-right:1px solid var(--line); padding:12px; overflow:auto; }
-    .inc { padding:10px; border:1px solid var(--line); margin-bottom:8px; cursor:pointer; background:var(--card); }
-    .inc:hover { border-color:#3d4759; }
-    .inc.active { border-color:var(--accent); }
-    .state { color:var(--warn); }
-    .state.closed_healed, .state.approved, .state.baseline { color:var(--ok); }
-    .state.escalated, .state.rejected { color:var(--bad); }
-    .pill { display:inline-block; font-size:10px; letter-spacing:.1em; border:1px solid var(--line); padding:1px 6px; color:var(--muted); margin-left:6px; vertical-align:1px; }
-    article { padding:20px 28px; overflow:auto; }
-    .lede { color:var(--text); border-left:2px solid var(--warn); padding:8px 0 8px 14px; margin:14px 0 4px; max-width:70ch; }
-    .tl { border-left:2px solid var(--line); margin-left:8px; padding-left:18px; }
-    .ev { margin:0 0 20px; position:relative; }
-    .ev::before { content:''; position:absolute; left:-25px; top:5px; width:7px; height:7px; border-radius:50%; background:var(--line); }
-    .ev.bad::before { background:var(--bad); }
-    .ev.good::before { background:var(--ok); }
-    .ev time { color:var(--muted); font-size:12px; }
-    .note { color:var(--muted); margin-top:2px; }
-    .note.bad { color:var(--bad); }
-    pre { background:var(--card); border:1px solid var(--line); padding:12px; overflow:auto; white-space:pre-wrap; font-size:12.5px; margin:6px 0 0; }
-    table { border-collapse:collapse; margin:6px 0 0; font-size:12.5px; }
-    th, td { border:1px solid var(--line); padding:5px 10px; text-align:left; }
-    th { color:var(--muted); font-weight:600; }
-    .pass { color:var(--ok); }
-    .fail { color:var(--bad); }
-    .muted { color:var(--muted); }
-    details summary { cursor:pointer; color:var(--muted); font-size:12px; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Driftwatch — content change or structural breakage</title>
+<meta name="description" content="Driftwatch tells a content change apart from a broken scraper, and verifies every self-heal against a live run before trusting it." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2308090d'/%3E%3Cpath d='M6 20.5 12 12l5 6 3-4 6 8.5' stroke='%2300c758' stroke-width='2.2' fill='none' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --bg:#08090d; --atmosphere:#0c0e13; --card:#101218; --card-2:#18181b;
+    --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.16);
+    --fg:#fafafa; --muted:#9f9fa9; --dim:#71717b;
+    --blue:#3080ff; --green:#00c758; --green-deep:#00a544;
+    --orange:#fe6e00; --red:#fb2c36; --red-deep:#e40014; --violet:#8a86ff;
+    --radius:.45rem; --radius-lg:14px;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:"Geist Mono",ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    --maxw:1180px;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg); overflow-x:hidden;
+    font-family:var(--sans); font-size:15px; line-height:1.55;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    font-variant-numeric:tabular-nums;
+  }
+  /* Atmosphere: one radial wash plus a faint dot grid, both pinned behind content. */
+  body::before{
+    content:''; position:fixed; inset:0; z-index:-2; pointer-events:none;
+    background:
+      radial-gradient(900px 520px at 18% -8%, rgba(48,128,255,.14), transparent 70%),
+      radial-gradient(760px 460px at 88% 4%, rgba(138,134,255,.10), transparent 72%),
+      linear-gradient(180deg,var(--atmosphere),var(--bg) 34%);
+  }
+  body::after{
+    content:''; position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.5;
+    background-image:radial-gradient(rgba(255,255,255,.10) 1px, transparent 1px);
+    background-size:34px 34px;
+    mask-image:linear-gradient(180deg,#000,transparent 60%);
+    -webkit-mask-image:linear-gradient(180deg,#000,transparent 60%);
+  }
+  .wrap{ width:100%; max-width:var(--maxw); margin-inline:auto; padding-inline:24px; }
+  a{ color:inherit; }
+  code,pre,.mono{ font-family:var(--mono); font-feature-settings:"ss01","zero"; }
+
+  /* ---------- type ---------- */
+  h1,h2,h3,h4{ margin:0; letter-spacing:-.025em; font-weight:600; }
+  h1{ font-size:clamp(2.1rem,5.4vw,3.5rem); line-height:1.03; font-weight:700; letter-spacing:-.035em; }
+  h2{ font-size:clamp(1.4rem,2.6vw,1.9rem); line-height:1.12; }
+  h3{ font-size:1.05rem; line-height:1.25; }
+  p{ margin:0; }
+  .eyebrow{
+    font-family:var(--mono); font-size:10.5px; font-weight:500;
+    text-transform:uppercase; letter-spacing:.2em; color:var(--dim);
+  }
+  .lede{ color:var(--muted); font-size:clamp(1rem,1.6vw,1.14rem); line-height:1.6; max-width:64ch; }
+  .muted{ color:var(--muted); }
+  .dim{ color:var(--dim); }
+  .prose{ max-width:70ch; color:var(--muted); }
+
+  /* ---------- nav ---------- */
+  nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(8,9,13,.72); backdrop-filter:blur(14px) saturate(150%);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{ display:flex; align-items:center; gap:18px; height:60px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.02em; text-decoration:none; }
+  .brand svg{ display:block; }
+  .brand small{
+    font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--dim); padding-left:11px; margin-left:2px; border-left:1px solid var(--line);
+  }
+  .nav-spacer,.spacer{ flex:1; }
+  .nav-links{ display:flex; gap:22px; }
+  .nav-links a{
+    font-size:13px; color:var(--muted); text-decoration:none; transition:color .15s var(--ease);
+  }
+  .nav-links a:hover{ color:var(--fg); }
+
+  /* ---------- atoms ---------- */
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.13em; text-transform:uppercase;
+    border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--muted);
+    background:rgba(255,255,255,.03); white-space:nowrap;
+  }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(0,199,88,.16); flex:none; }
+  .dot.amber{ background:var(--orange); box-shadow:0 0 0 3px rgba(254,110,0,.16); }
+
+  button{ font:inherit; cursor:pointer; border-radius:var(--radius); transition:all .16s var(--ease); }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 15px; font-size:13.5px; font-weight:500;
+    background:var(--fg); color:#101218; border:1px solid var(--fg);
+  }
+  .btn:hover:not(:disabled){ transform:translateY(-1px); box-shadow:0 8px 22px -10px rgba(255,255,255,.4); }
+  .btn:disabled{ opacity:.45; cursor:default; transform:none; box-shadow:none; }
+  .btn-ghost{
+    background:rgba(255,255,255,.04); color:var(--fg); border:1px solid var(--line-2);
+    padding:8px 15px; font-size:13.5px;
+  }
+  .btn-ghost:hover:not(:disabled){ border-color:rgba(255,255,255,.34); background:rgba(255,255,255,.07); }
+  :is(button,a,summary):focus-visible{ outline:2px solid var(--blue); outline-offset:2px; border-radius:var(--radius); }
+
+  .card{
+    background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+    border:1px solid var(--line); border-radius:var(--radius-lg);
+  }
+
+  /* copyable collector id */
+  .copy{
+    display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px;
+    background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:var(--radius);
+    padding:5px 10px; color:var(--muted);
+  }
+  .copy button{ background:none; border:0; color:var(--dim); padding:0; display:grid; place-items:center; }
+  .copy button:hover{ color:var(--fg); }
+
+  /* ---------- hero ---------- */
+  header.hero{ padding:clamp(52px,8vw,96px) 0 44px; }
+  .hero-grid{ display:grid; gap:34px; }
+  .hero h1{ margin:16px 0 18px; max-width:19ch; }
+  .hero h1 em{ font-style:normal; color:var(--muted); }
+  .hero-cta{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:26px; }
+
+  .stats{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+    border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden;
+    background:rgba(255,255,255,.02);
+  }
+  .stat{ padding:18px 20px; border-right:1px solid var(--line); }
+  .stat:last-child{ border-right:0; }
+  .stat b{
+    display:block; font-size:clamp(1.6rem,3vw,2.1rem); font-weight:600; letter-spacing:-.04em;
+    line-height:1.05; font-family:var(--mono);
+  }
+  .stat span{ display:block; margin-top:6px; font-size:12.5px; color:var(--muted); line-height:1.4; }
+  .stat.is-bad b{ color:var(--red); }
+  .stat.is-good b{ color:var(--green); }
+
+  /* ---------- sections ---------- */
+  section{ padding:clamp(46px,6vw,74px) 0; border-top:1px solid var(--line); }
+  .sec-head{ margin-bottom:30px; }
+  .sec-head h2{ margin:12px 0 12px; }
+
+  /* ---------- field flow (before / preview / after) ---------- */
+  .flow{ display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); }
+  .flow-col{ padding:18px; border-radius:var(--radius-lg); border:1px solid var(--line); background:rgba(255,255,255,.02); }
+  .flow-col.preview{ border-color:rgba(48,128,255,.34); background:linear-gradient(180deg,rgba(48,128,255,.09),transparent); }
+  .flow-col.live{ border-color:rgba(251,44,54,.34); background:linear-gradient(180deg,rgba(251,44,54,.08),transparent); }
+  .flow-col h4{ font-size:13px; margin-bottom:3px; }
+  .flow-col .cap{ font-size:11.5px; color:var(--dim); display:block; margin-bottom:14px; }
+  .pills{ display:flex; flex-wrap:wrap; gap:7px; }
+  .pill{
+    font-family:var(--mono); font-size:11.5px; padding:4px 9px; border-radius:var(--radius);
+    border:1px solid var(--line); color:var(--muted); background:rgba(255,255,255,.04);
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .pill.ok{ color:#8ef0b6; border-color:rgba(0,199,88,.34); background:rgba(0,199,88,.10); }
+  .pill.new{ color:#a9c8ff; border-color:rgba(48,128,255,.36); background:rgba(48,128,255,.10); }
+  .pill.gone{ color:#ffa8ad; border-color:rgba(251,44,54,.4); background:rgba(251,44,54,.10); text-decoration:line-through; text-decoration-color:rgba(251,44,54,.75); }
+  .pill.never{ color:#ffc79a; border-color:rgba(254,110,0,.38); background:rgba(254,110,0,.10); }
+  .legend{ display:flex; flex-wrap:wrap; gap:16px; margin-top:18px; font-size:12px; color:var(--dim); }
+  .legend i{ width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:7px; vertical-align:0; }
+
+  /* ---------- timeline ---------- */
+  .attempt{ margin-top:20px; border-radius:var(--radius-lg); border:1px solid var(--line); overflow:hidden; }
+  .attempt-head{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:13px 20px; background:rgba(255,255,255,.035); border-bottom:1px solid var(--line);
+  }
+  .attempt-head b{ font-size:13.5px; font-weight:600; letter-spacing:-.01em; }
+  .attempt-body{ padding:8px 20px 20px; }
+  .rail{ border-left:1px solid var(--line); margin-left:7px; padding-left:24px; }
+  .step{ position:relative; padding:16px 0 4px; }
+  .step+.step{ border-top:1px solid rgba(255,255,255,.06); }
+  .step::before{
+    content:''; position:absolute; left:-29px; top:22px; width:9px; height:9px; border-radius:50%;
+    background:var(--dim); box-shadow:0 0 0 4px var(--bg);
+  }
+  .step.good::before{ background:var(--green); }
+  .step.bad::before{ background:var(--red); }
+  .step.info::before{ background:var(--blue); }
+  .step-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .chip{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.11em; text-transform:uppercase;
+    border-radius:999px; padding:3px 9px; border:1px solid var(--line-2); color:var(--muted);
+  }
+  .chip.good{ color:#8ef0b6; border-color:rgba(0,199,88,.4); background:rgba(0,199,88,.10); }
+  .chip.bad{ color:#ffa8ad; border-color:rgba(251,44,54,.42); background:rgba(251,44,54,.10); }
+  .chip.info{ color:#a9c8ff; border-color:rgba(48,128,255,.4); background:rgba(48,128,255,.10); }
+  .step p.note{ margin-top:7px; color:var(--muted); font-size:14px; max-width:76ch; }
+  .step.bad p.note{ color:#ffbcc0; }
+
+  details.ev{ margin-top:12px; }
+  details.ev summary{
+    display:inline-flex; align-items:center; gap:7px; cursor:pointer; list-style:none;
+    font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--dim); border:1px solid var(--line); border-radius:var(--radius); padding:4px 10px;
+    transition:all .15s var(--ease);
+  }
+  details.ev summary::-webkit-details-marker{ display:none; }
+  details.ev summary:hover{ color:var(--fg); border-color:var(--line-2); }
+  details.ev[open] summary{ color:var(--fg); }
+  details.ev summary svg{ transition:transform .18s var(--ease); }
+  details.ev[open] summary svg{ transform:rotate(90deg); }
+
+  pre{
+    margin:11px 0 0; padding:14px 16px; overflow:auto; max-height:340px; max-width:100%;
+    background:#07080b; border:1px solid var(--line); border-radius:var(--radius);
+    font-size:12.5px; line-height:1.6; white-space:pre; color:#cdd3de;
+  }
+  pre::-webkit-scrollbar{ width:10px; height:10px; }
+  pre::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.14); border-radius:6px; }
+  .tk-key{ color:#a9c8ff; } .tk-str{ color:#8ef0b6; } .tk-num{ color:#ffc79a; }
+  .tk-bool{ color:#c9a6ff; } .tk-null{ color:var(--dim); }
+
+  .banner{
+    margin-top:20px; display:flex; gap:14px; align-items:flex-start;
+    border:1px solid rgba(251,44,54,.34); background:linear-gradient(180deg,rgba(251,44,54,.10),transparent);
+    border-radius:var(--radius-lg); padding:18px 20px;
+  }
+  .banner .chip{ flex:none; }
+
+  /* ---------- tables ---------- */
+  /* Wide tables scroll inside their own box rather than widening the page. */
+  .tbl-wrap{ overflow-x:auto; max-width:100%; border:1px solid var(--line); border-radius:var(--radius-lg); }
+  .card,.flow-col,.attempt,.attempt-body,.step,.rail,section,.hero-grid>*{ min-width:0; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th,td{ text-align:left; padding:11px 16px; border-bottom:1px solid var(--line); vertical-align:top; }
+  thead th{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--dim); font-weight:500; background:rgba(255,255,255,.03); white-space:nowrap;
+  }
+  tbody tr:last-child td{ border-bottom:0; }
+  tbody tr:hover td{ background:rgba(255,255,255,.022); }
+  td.mono{ font-size:12.5px; color:var(--muted); }
+  .pass{ color:var(--green); } .fail{ color:var(--red); }
+  .diff-add{ color:#8ef0b6; background:rgba(0,199,88,.14); border-radius:3px; padding:1px 4px; }
+  .diff-miss{ color:#ffa8ad; background:rgba(251,44,54,.14); border-radius:3px; padding:1px 4px; text-decoration:line-through; }
+
+  /* fill-rate bar */
+  .bar{ height:5px; border-radius:99px; background:rgba(255,255,255,.09); overflow:hidden; min-width:90px; }
+  .bar i{ display:block; height:100%; border-radius:99px; background:var(--green); }
+  .bar i.zero{ background:var(--dim); }
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed; right:20px; bottom:20px; z-index:80; display:grid; gap:10px;
+    max-width:min(400px,calc(100vw - 40px));
+  }
+  .toast{
+    border:1px solid var(--line-2); border-radius:var(--radius-lg); padding:13px 16px;
+    background:rgba(16,18,24,.96); backdrop-filter:blur(10px); font-size:13.5px;
+    box-shadow:0 24px 50px -22px rgba(0,0,0,.9);
+    animation:rise .34s var(--ease) both;
+  }
+  .toast b{ display:block; margin-bottom:3px; font-size:13px; }
+  .toast.err{ border-color:rgba(251,44,54,.45); }
+  @keyframes rise{ from{ opacity:0; transform:translateY(12px) scale(.97); } }
+
+  /* ---------- footer ---------- */
+  footer{ border-top:1px solid var(--line); padding:40px 0 56px; color:var(--dim); font-size:13px; }
+  .foot-grid{ display:flex; flex-wrap:wrap; gap:26px; justify-content:space-between; align-items:flex-start; }
+  footer a{ color:var(--muted); text-decoration:none; border-bottom:1px solid var(--line-2); }
+  footer a:hover{ color:var(--fg); }
+
+  /* ---------- entrance ----------
+     Hidden only once the script has confirmed it can reveal again, so a failed
+     observer or a disabled script can never leave a section invisible. */
+  body.animate .reveal{ opacity:0; transform:translateY(14px); }
+  body.animate .reveal.in{ opacity:1; transform:none; transition:opacity .6s var(--ease), transform .6s var(--ease); }
+  @media (prefers-reduced-motion:reduce){
+    *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+    .reveal{ opacity:1; transform:none; }
+    html{ scroll-behavior:auto; }
+  }
+  @media (max-width:860px){
+    .nav-links{ display:none; }
+    .stat{ border-right:0; border-bottom:1px solid var(--line); }
+    .wrap{ padding-inline:18px; }
+    .nav-in{ gap:12px; }
+    .brand small{ display:none; }
+    .attempt-head,.attempt-body{ padding-inline:14px; }
+    .rail{ padding-left:18px; }
+    .step p.note{ font-size:13.5px; }
+  }
+  @media (max-width:520px){
+    #mode{ display:none; }
+    .hero-cta{ gap:10px; }
+    .copy{ font-size:11px; }
+  }
+</style>
 </head>
 <body>
-  <header>
-    <h1>DRIFTWATCH · content vs structure</h1>
-    <div>
-      <span id="meta" class="muted"></span>
-      <button id="run">Trigger run</button>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#101218" stroke="rgba(255,255,255,.14)"/>
+        <path d="M6 20.5 12 12l5 6 3-4 6 8.5" stroke="#00c758" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      Driftwatch <small>content vs structure</small>
+    </a>
+    <span class="nav-spacer"></span>
+    <div class="nav-links">
+      <a href="#finding">The finding</a>
+      <a href="#timeline">Audit trail</a>
+      <a href="#telemetry">Telemetry</a>
+      <a href="#contract">Contract</a>
     </div>
-  </header>
-  <main>
-    <aside id="list"></aside>
-    <article id="detail"><p class="muted">Select an incident. This screen is the audit trail.</p></article>
-  </main>
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const esc = (s) => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    const json = (v) => esc(typeof v === 'string' ? tryParse(v) : JSON.stringify(v, null, 2));
-    function tryParse(s){ try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s || ''; } }
-    async function api(url, opts){ const r = await fetch(url, opts); return r.json(); }
+    <span id="mode" class="badge"><span class="dot"></span>loading</span>
+    <button id="run" class="btn">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.5 2.6v10.8a.6.6 0 0 0 .93.5l8-5.4a.6.6 0 0 0 0-1l-8-5.4a.6.6 0 0 0-.93.5Z"/></svg>
+      Trigger run
+    </button>
+  </div>
+</nav>
 
-    async function refresh() {
-      const h = await api('/api/v1/health');
-      $('meta').textContent = (h.fixture_mode ? 'FIXTURE_MODE · ' : 'LIVE · ') + (h.collector_id || 'no collector');
-      const items = await api('/api/v1/incidents');
-      const rows = [`<div class="inc" data-recorded="1">
-          <div>shopalto.xyz <span class="pill">RECORDED</span></div>
-          <div class="state escalated">escalated</div>
-        </div>`];
-      for (const i of items) {
-        rows.push(`<div class="inc" data-id="${i.id}"><div>#${i.id} ${esc(i.host)}</div><div class="state ${esc(i.state)}">${esc(i.state)}</div></div>`);
-      }
-      if (!items.length) rows.push('<p class="muted">No live incidents. Fixture mode replays one healthy run, so nothing is flagged — which is the correct verdict.</p>');
-      $('list').innerHTML = rows.join('');
-      document.querySelectorAll('.inc').forEach(el => el.onclick = () => el.dataset.recorded ? openRecorded(el) : openIncident(el));
-      openRecorded(document.querySelector('.inc'));
+<a id="top"></a>
+<header class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <span class="eyebrow">Bright Data Scraper Studio · self-healing audit</span>
+      <h1>A scraper that returns data is not the same as a scraper that works.</h1>
+      <p class="lede">
+        Every run answers one question first: did the <em>page</em> change, or did the <em>scraper</em> break?
+        Content change becomes an insight. Structural breakage opens an incident, composes a heal, and then
+        refuses to trust it until a live verification run agrees.
+      </p>
+      <div class="hero-cta">
+        <span id="collector" class="copy" hidden></span>
+        <a class="btn-ghost" href="#finding" style="text-decoration:none;display:inline-flex;align-items:center;">Read what we found</a>
+      </div>
+    </div>
+    <div id="stats" class="stats reveal"></div>
+  </div>
+</header>
+
+<section id="finding" class="wrap reveal">
+  <div class="sec-head">
+    <span class="eyebrow">What the verification run caught</span>
+    <h2 id="finding-h2">The preview was clean. Production was not.</h2>
+    <p class="prose" id="finding-lede"></p>
+  </div>
+  <div id="flow" class="flow"></div>
+  <div class="legend">
+    <span><i style="background:rgba(0,199,88,.55)"></i>survived the heal</span>
+    <span><i style="background:rgba(48,128,255,.55)"></i>newly delivered</span>
+    <span><i style="background:rgba(251,44,54,.6)"></i>regressed — worked before, gone after</span>
+    <span><i style="background:rgba(254,110,0,.6)"></i>never arrived despite the preview</span>
+  </div>
+</section>
+
+<section id="timeline" class="wrap reveal">
+  <div class="sec-head">
+    <span class="eyebrow">Incident audit trail</span>
+    <h2>Two attempts, step by step</h2>
+    <p class="prose" id="tl-src"></p>
+  </div>
+  <div id="attempts"></div>
+  <div id="tail"></div>
+  <div class="sec-head" style="margin-top:52px">
+    <span class="eyebrow">Observation</span>
+    <h3 style="margin:10px 0 12px">The two approval envelopes were not identical</h3>
+  </div>
+  <div id="steps-diff"></div>
+</section>
+
+<section id="telemetry" class="wrap reveal">
+  <div class="sec-head">
+    <span class="eyebrow">Live pipeline</span>
+    <h2>Runs, incidents and field health</h2>
+    <p class="prose">
+      This is the running system, not the recording. Press <b>Trigger run</b> to pull a collection through
+      ingest, parse it against the field contract, and classify every host.
+    </p>
+  </div>
+  <div id="live-incidents" style="margin-bottom:18px"></div>
+  <!-- Kept outside #live-incidents so refreshing the list cannot wipe an open drill-down. -->
+  <div id="inc-detail" style="margin-bottom:18px"></div>
+  <div id="runs"></div>
+  <div id="field-health" style="margin-top:18px"></div>
+</section>
+
+<section id="contract" class="wrap reveal">
+  <div class="sec-head">
+    <span class="eyebrow">Declared expectations</span>
+    <h2>The field contract</h2>
+    <p class="prose">
+      Detection is driven by this contract, not by hard-coded selectors. Each field declares its parser, whether
+      it is critical, and the null rate that is normal for it — so a field that is legitimately sparse cannot
+      raise a false alarm.
+    </p>
+  </div>
+  <div id="contracts"></div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div>
+      <div style="color:var(--muted);font-weight:500;margin-bottom:6px">Driftwatch</div>
+      <div>Built for <a href="https://www.wemakedevs.org/hackathons/scrape-verse" target="_blank" rel="noopener">Into the Scrape-Verse</a>, WeMakeDevs × Bright Data.</div>
+      <div style="margin-top:6px">Written with AI assistance (Cursor). Every captured Bright Data response in <span class="mono">samples/</span> is unedited.</div>
+    </div>
+    <div style="display:grid;gap:6px">
+      <div><a id="panel-link" href="https://brightdata.com/cp/scrapers" target="_blank" rel="noopener">Collector control panel</a></div>
+      <div><a href="/docs" target="_blank" rel="noopener">API reference</a></div>
+      <div><a href="/api/v1/recorded-incident" target="_blank" rel="noopener">Recorded incident JSON</a></div>
+    </div>
+  </div>
+</footer>
+
+<div id="toast" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const api = async (u, o) => { const r = await fetch(u, o); if (!r.ok) throw new Error(u + ' → ' + r.status); return r.json(); };
+  const pct = (n) => (n * 100).toFixed(n === 0 || n === 1 ? 0 : 1) + '%';
+  const caret = '<svg width="9" height="9" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5.5 3l6 5-6 5z"/></svg>';
+
+  /* Colourise a JSON payload. Escaping happens first, so the tokeniser only ever
+     runs over inert text and cannot inject markup. */
+  function jsonHTML(value) {
+    let text = value;
+    if (typeof text === 'string') { try { text = JSON.parse(text); } catch { return esc(value); } }
+    return esc(JSON.stringify(text, null, 2))
+      .replace(/(&quot;(?:[^&\\]|\\.|&(?!quot;))*&quot;)(\s*:)?/g,
+        (m, str, colon) => colon ? `<span class="tk-key">${str}</span>${colon}` : `<span class="tk-str">${str}</span>`)
+      .replace(/\b(-?\d+\.?\d*(?:[eE][+-]?\d+)?)\b/g, '<span class="tk-num">$1</span>')
+      .replace(/\b(true|false)\b/g, '<span class="tk-bool">$1</span>')
+      .replace(/\bnull\b/g, '<span class="tk-null">null</span>');
+  }
+
+  const evidence = (ev) => ev
+    ? `<details class="ev"><summary>${caret} evidence</summary><pre>${jsonHTML(ev)}</pre></details>`
+    : '';
+
+  function toast(title, body, isErr) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (isErr ? ' err' : '');
+    el.innerHTML = `<b>${esc(title)}</b><span class="muted">${esc(body)}</span>`;
+    $('toast').append(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, 5200);
+  }
+
+  const fieldsOf = (rows) => Array.isArray(rows)
+    ? [...new Set(rows.flatMap(r => Object.keys(r)))].filter(k => k !== 'input').sort()
+    : [];
+
+  /* ---------- recorded incident ---------- */
+  function renderRecorded(d) {
+    const previews = d.timeline.filter(t => t.state === 'awaiting_approval');
+    const verifies = d.timeline.filter(t => t.state === 'verifying');
+    const baseline = (d.timeline.find(t => t.state === 'baseline')?.evidence?.fields) || [];
+    const preview = fieldsOf(previews[0]?.evidence?.preview_result);
+    const live = fieldsOf(verifies[0]?.evidence?.rows);
+    const cmp = verifies[0]?.evidence?.field_comparison || { regressed: [], never_delivered: [], delivered: [] };
+    const failed = verifies.filter(v => {
+      const c = v.evidence?.field_comparison;
+      return c && (c.regressed.length || c.never_delivered.length);
+    }).length;
+
+    $('finding-lede').textContent = d.headline;
+    $('tl-src').textContent = d.source + ' · collector ' + d.collector_id + ' · target ' + d.target;
+
+    /* hero stats, all derived so they cannot drift from the evidence */
+    $('stats').innerHTML = [
+      ['', d.attempt_count, 'heal attempts on one collector'],
+      ['is-good', `${previews.length}/${previews.length}`, 'previews showed every requested field'],
+      ['is-bad', `${failed}/${verifies.length}`, 'live runs afterwards disagreed with the preview'],
+      ['is-bad', cmp.regressed.length, `field regressed: ${cmp.regressed.join(', ') || 'none'}`]
+    ].map(([cls, big, label]) =>
+      `<div class="stat ${cls}"><b>${esc(big)}</b><span>${esc(label)}</span></div>`).join('');
+
+    /* three-column field flow */
+    const pills = (list, kind) => list.length
+      ? `<div class="pills">${list.map(f => `<span class="pill ${kind(f)}">${esc(f)}</span>`).join('')}</div>`
+      : '<span class="dim" style="font-size:12.5px">none</span>';
+
+    $('flow').innerHTML = `
+      <div class="flow-col">
+        <h4>Baseline</h4><span class="cap">what the collector returned before any heal</span>
+        ${pills(baseline, () => 'ok')}
+      </div>
+      <div class="flow-col preview">
+        <h4>Heal preview</h4><span class="cap">what Bright Data showed at the approval gate</span>
+        ${pills(preview, f => baseline.includes(f) ? 'ok' : 'new')}
+      </div>
+      <div class="flow-col live">
+        <h4>Live run after approval</h4><span class="cap">what actually came back in production</span>
+        ${pills(preview, f => live.includes(f) ? (baseline.includes(f) ? 'ok' : 'new')
+                                              : (baseline.includes(f) ? 'gone' : 'never'))}
+      </div>`;
+
+    /* group the flat timeline into attempts */
+    const pre = [], groups = [], tail = [];
+    let cur = null;
+    for (const t of d.timeline) {
+      if (t.state === 'escalated') { tail.push(t); continue; }
+      if (t.state === 'heal_requested') { cur = { steps: [] }; groups.push(cur); }
+      (cur ? cur.steps : pre).push(t);
     }
 
-    function select(el){ document.querySelectorAll('.inc').forEach(e => e.classList.toggle('active', e === el)); }
-
-    async function openRecorded(el) {
-      select(el);
-      const d = await api('/api/v1/recorded-incident');
-      const steps = d.approval_step_difference;
-      $('detail').innerHTML = `
-        <h2>${esc(d.host)} · <span class="state escalated">${esc(d.state)}</span> <span class="pill">RECORDED</span></h2>
-        <p class="muted">${esc(d.source)} · collector ${esc(d.collector_id)} · ${d.attempt_count} attempts · outcome ${esc(d.outcome)}</p>
-        <p class="lede">${esc(d.headline)}</p>
-        <h3>Timeline</h3>
-        <div class="tl">${d.timeline.map(t => {
-          const cmp = t.evidence && t.evidence.field_comparison;
-          const missing = cmp ? cmp.regressed.length + cmp.never_delivered.length : 0;
-          const bad = missing > 0 || t.state === 'escalated';
-          const good = t.state === 'approved' || t.state === 'baseline';
-          return `<div class="ev ${bad ? 'bad' : good ? 'good' : ''}">
-            <div><strong class="state ${esc(t.state)}">${esc(t.state)}</strong></div>
-            <div class="note ${bad ? 'bad' : ''}">${esc(t.note)}</div>
-            ${t.evidence ? `<details><summary>evidence</summary><pre>${json(t.evidence)}</pre></details>` : ''}
-          </div>`;
-        }).join('')}</div>
-        <h3>Approval envelopes differ</h3>
-        <table>
-          <tr><th>Attempt</th><th>completed_steps</th></tr>
-          <tr><td>1</td><td>${esc(steps.attempt_1.join(', '))}</td></tr>
-          <tr><td>2</td><td>${esc(steps.attempt_2.join(', '))}</td></tr>
-        </table>
-        <p class="muted" style="max-width:70ch">${esc(steps.note)}</p>`;
-    }
-
-    async function openIncident(el) {
-      select(el);
-      const d = await api('/api/v1/incidents/' + el.dataset.id);
-      $('detail').innerHTML = `
-        <h2>Incident ${d.id} · ${esc(d.host)}</h2>
-        <p class="muted">state <span class="state ${esc(d.state)}">${esc(d.state)}</span> · outcome ${esc(d.outcome || '—')} · attempts ${d.attempt_count}</p>
-        <h3>Timeline</h3>
-        <div class="tl">${(d.timeline||[]).map(t => `<div class="ev">
-            <div><strong class="state ${esc(t.state)}">${esc(t.state)}</strong></div>
-            <time>${esc(t.at)}</time>
-            <div class="note">${esc(t.note)}</div>
-          </div>`).join('')}</div>
-        <h3>Detection evidence</h3>
-        <pre>${json(d.detection_evidence)}</pre>
-        ${(d.attempts||[]).map(a => `
-          <h3>Attempt ${a.attempt_number} · ${esc(a.decision)} · ${a.prompt_length} chars</h3>
-          <pre>${esc(a.prompt)}</pre>
-          <h4>Validation</h4>
-          ${levels(a.validation_report)}
-        `).join('')}`;
-    }
-
-    function levels(report) {
-      let r = report;
-      if (typeof r === 'string') { try { r = JSON.parse(r); } catch { return `<pre>${esc(report)}</pre>`; } }
-      if (!r || !Array.isArray(r.levels)) return `<pre>${json(report)}</pre>`;
-      return `<table>
-        <tr><th>L</th><th>Check</th><th>Gating</th><th>Result</th><th>Detail</th></tr>
-        ${r.levels.map(l => `<tr>
-          <td>${l.level}</td><td>${esc(l.name)}</td><td class="muted">${esc(l.gating)}</td>
-          <td class="${l.passed ? 'pass' : 'fail'}">${l.passed ? 'pass' : 'fail'}</td>
-          <td class="muted">${esc(l.detail)}</td></tr>`).join('')}
-        <tr><td colspan="3"><strong>gate</strong></td>
-            <td class="${r.passed_gate ? 'pass' : 'fail'}"><strong>${r.passed_gate ? 'pass' : 'fail'}</strong></td>
-            <td class="muted">verification run is the hard gate</td></tr>
-      </table>`;
-    }
-
-    $('run').onclick = async () => {
-      $('run').disabled = true;
-      try { await api('/api/v1/runs/trigger', { method:'POST' }); await refresh(); }
-      finally { $('run').disabled = false; }
+    const tone = (t) => {
+      const c = t.evidence?.field_comparison;
+      if (c && (c.regressed.length || c.never_delivered.length)) return 'bad';
+      if (t.state === 'baseline' || t.state === 'approved') return 'good';
+      if (t.state === 'awaiting_approval') return 'info';
+      return '';
     };
-    refresh();
-  </script>
+    const step = (t) => `
+      <div class="step ${tone(t)}">
+        <div class="step-top"><span class="chip ${tone(t)}">${esc(t.state)}</span></div>
+        <p class="note">${esc(t.note)}</p>
+        ${evidence(t.evidence)}
+      </div>`;
+
+    $('attempts').innerHTML =
+      (pre.length ? `<div class="attempt"><div class="attempt-head"><b>Starting point</b>
+          <span class="badge">collector unchanged</span></div>
+        <div class="attempt-body"><div class="rail">${pre.map(step).join('')}</div></div></div>` : '')
+      + groups.map((g, i) => {
+        const v = g.steps.find(s => s.state === 'verifying');
+        const c = v?.evidence?.field_comparison;
+        const bad = c && (c.regressed.length || c.never_delivered.length);
+        return `<div class="attempt">
+          <div class="attempt-head">
+            <b>Attempt ${i + 1}</b>
+            <span class="chip ${bad ? 'bad' : 'good'}">${bad ? 'verification failed' : 'verified'}</span>
+            <span class="spacer"></span>
+            <span class="badge"><span class="dot ${bad ? 'amber' : ''}"></span>${g.steps.length} states</span>
+          </div>
+          <div class="attempt-body"><div class="rail">${g.steps.map(step).join('')}</div></div>
+        </div>`;
+      }).join('');
+
+    $('tail').innerHTML = tail.map(t => `
+      <div class="banner">
+        <span class="chip bad">${esc(t.state)}</span>
+        <div><p style="font-weight:500">${esc(t.note)}</p>
+        <p class="muted" style="margin-top:6px;font-size:13.5px">No further automatic attempt is made. The incident
+        stays open for a human, which is the honest outcome when the tooling reports success and production disagrees.</p></div>
+      </div>`).join('');
+
+    /* approval envelope diff */
+    const s = d.approval_step_difference;
+    const only1 = s.attempt_1.filter(x => !s.attempt_2.includes(x));
+    const cell = (steps, others) => steps.map(x =>
+      others.includes(x) ? esc(x) : `<span class="diff-add">${esc(x)}</span>`).join(', ');
+    $('steps-diff').innerHTML = `
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Attempt</th><th>completed_steps returned by the approval call</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">1</td><td class="mono">${cell(s.attempt_1, s.attempt_2)}</td></tr>
+            <tr><td class="mono">2</td><td class="mono">${cell(s.attempt_2, s.attempt_1)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="prose" style="margin-top:14px">${esc(s.note)}</p>
+      ${only1.length ? `<p class="prose" style="margin-top:10px">Present only in attempt 1:
+        ${only1.map(x => `<span class="mono diff-add">${esc(x)}</span>`).join(' ')}</p>` : ''}`;
+  }
+
+  /* ---------- live pipeline ---------- */
+  function renderRuns(runs) {
+    $('runs').innerHTML = !runs.length
+      ? `<div class="card" style="padding:26px;text-align:center">
+           <p class="muted">No runs yet. Press <b>Trigger run</b> to pull a collection through the pipeline.</p></div>`
+      : `<div class="tbl-wrap"><table>
+          <thead><tr><th>Run</th><th>Status</th><th>Rows</th><th>Collection ID</th><th>Started</th></tr></thead>
+          <tbody>${runs.map(r => `<tr>
+            <td class="mono">#${r.id}</td>
+            <td><span class="chip ${r.status === 'ok' ? 'good' : 'bad'}">${esc(r.status)}</span></td>
+            <td class="mono">${r.row_count ?? '—'}</td>
+            <td class="mono">${esc(r.collection_id || '—')}</td>
+            <td class="mono">${esc((r.started_at || '').replace('T', ' ').slice(0, 19))}</td>
+          </tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function renderIncidents(items) {
+    if (items.length) {
+      $('live-incidents').innerHTML = `<div class="tbl-wrap"><table>
+        <thead><tr><th>Incident</th><th>Host</th><th>State</th><th>Fields</th><th>Attempts</th><th>Outcome</th><th></th></tr></thead>
+        <tbody>${items.map(i => `<tr>
+          <td class="mono">#${i.id}</td><td class="mono">${esc(i.host)}</td>
+          <td><span class="chip ${/healed|approved/.test(i.state) ? 'good' : /escalated|rejected/.test(i.state) ? 'bad' : 'info'}">${esc(i.state)}</span></td>
+          <td class="mono">${esc(i.fields || '—')}</td><td class="mono">${i.attempt_count}</td>
+          <td class="mono">${esc(i.outcome || '—')}</td>
+          <td><button class="btn-ghost" data-inc="${i.id}" style="padding:5px 11px;font-size:12.5px">Inspect</button></td>
+        </tr>`).join('')}</tbody></table></div>`;
+      $('live-incidents').querySelectorAll('[data-inc]').forEach(b => b.onclick = () => openIncident(b.dataset.inc));
+      // Re-open whatever was being inspected, so a run does not close it.
+      if (open_incident_id && items.some(i => String(i.id) === String(open_incident_id))) openIncident(open_incident_id, false);
+      return;
+    }
+    $('inc-detail').innerHTML = '';
+
+    /* No incident is the correct result in fixture mode, and saying so beats an empty panel. */
+    $('live-incidents').innerHTML = `
+      <div class="card" style="padding:22px 24px">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+          <span class="chip good">no incidents</span>
+          <b style="font-size:14px">Nothing is flagged, and that is the correct verdict</b>
+        </div>
+        <p class="prose" style="font-size:14px">
+          Fixture mode replays one captured Hacker News collection. Identical data every run means no fill rate
+          ever moves, so there is no signal to detect and nothing to open an incident about.
+        </p>
+      </div>`;
+  }
+
+  function renderFieldHealth(fields) {
+    if (!fields.length) { $('field-health').innerHTML = ''; return; }
+    const zero = fields.filter(f => f.fill_rate === 0).length;
+    $('field-health').innerHTML = `
+      <div class="card" style="padding:22px 24px">
+        <b style="font-size:14px">Field health</b>
+        <p class="prose" style="font-size:14px;margin-top:8px">
+          Fill rate per field, per host, across every observation on record.
+          ${zero ? `${zero} of these ${fields.length} series sit at 0% because the replayed page is Hacker News,
+          which has no pricing fields at all — and a rate that is <em>stably</em> zero is still stable.
+          Detection measures movement, not presence, which is why this raises nothing.` : ''}
+        </p>
+        <div class="tbl-wrap" style="margin-top:18px"><table>
+          <thead><tr><th>Host</th><th>Field</th><th>Observations</th><th>Fill rate</th><th></th></tr></thead>
+          <tbody>${fields.map(f => {
+            const [host, name] = f.key.split(':');
+            return `<tr><td class="mono">${esc(host)}</td><td class="mono">${esc(name)}</td>
+              <td class="mono">${f.n}</td><td class="mono">${pct(f.fill_rate)}</td>
+              <td style="min-width:110px"><div class="bar"><i class="${f.fill_rate === 0 ? 'zero' : ''}" style="width:${Math.max(f.fill_rate * 100, f.fill_rate ? 3 : 0)}%"></i></div></td></tr>`;
+          }).join('')}</tbody></table></div>
+      </div>`;
+  }
+
+  function levels(report) {
+    let r = report;
+    if (typeof r === 'string') { try { r = JSON.parse(r); } catch { return `<pre>${esc(report)}</pre>`; } }
+    if (!r || !Array.isArray(r.levels)) return `<pre>${jsonHTML(report)}</pre>`;
+    return `<div class="tbl-wrap"><table>
+      <thead><tr><th>Level</th><th>Check</th><th>Gating</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>${r.levels.map(l => `<tr>
+        <td class="mono">${l.level}</td><td class="mono">${esc(l.name)}</td>
+        <td class="mono dim">${esc(l.gating)}</td>
+        <td class="${l.passed ? 'pass' : 'fail'}">${l.passed ? 'pass' : 'fail'}</td>
+        <td class="mono">${esc(l.detail)}</td></tr>`).join('')}
+        <tr><td colspan="3" class="mono"><b>gate</b></td>
+          <td class="${r.passed_gate ? 'pass' : 'fail'}"><b>${r.passed_gate ? 'pass' : 'fail'}</b></td>
+          <td class="mono dim">the verification run is the hard gate</td></tr>
+      </tbody></table></div>`;
+  }
+
+  let open_incident_id = null;
+
+  async function openIncident(id, scroll = true) {
+    const d = await api('/api/v1/incidents/' + id);
+    open_incident_id = id;
+    $('inc-detail').innerHTML = `
+      <div class="attempt" style="margin-top:18px">
+        <div class="attempt-head"><b>Incident #${d.id} · ${esc(d.host)}</b>
+          <span class="chip info">${esc(d.state)}</span>
+          <span class="badge">${d.attempt_count} attempts</span></div>
+        <div class="attempt-body">
+          <div class="rail">${(d.timeline || []).map(t => `
+            <div class="step"><div class="step-top"><span class="chip">${esc(t.state)}</span>
+              <span class="dim mono" style="font-size:11.5px">${esc((t.at || '').replace('T', ' ').slice(0, 19))}</span></div>
+              <p class="note">${esc(t.note)}</p></div>`).join('')}</div>
+          <h3 style="margin:26px 0 0;font-size:13px">Detection evidence</h3>
+          <pre>${jsonHTML(d.detection_evidence)}</pre>
+          ${(d.attempts || []).map(a => `
+            <h3 style="margin:26px 0 0;font-size:13px">Attempt ${a.attempt_number} · ${esc(a.decision)} · ${a.prompt_length} chars</h3>
+            <pre>${esc(a.prompt)}</pre>
+            <h3 style="margin:18px 0 10px;font-size:13px">Preview validation</h3>
+            ${levels(a.validation_report)}`).join('')}
+        </div>
+      </div>`;
+    if (scroll) $('inc-detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderContracts(c) {
+    $('contracts').innerHTML = `<div class="tbl-wrap"><table>
+      <thead><tr><th>Field</th><th>Parser</th><th>Critical</th><th>Sparse-prone</th><th>Expected null rate</th></tr></thead>
+      <tbody>${c.fields.map(f => `<tr>
+        <td class="mono">${esc(f.name)}</td><td class="mono">${esc(f.parser)}</td>
+        <td>${f.critical ? '<span class="chip bad">critical</span>' : '<span class="dim mono">—</span>'}</td>
+        <td>${f.sparse_prone ? '<span class="chip info">sparse</span>' : '<span class="dim mono">—</span>'}</td>
+        <td class="mono">${pct(f.expected_null_rate)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="prose" style="margin-top:14px">Contract <span class="mono">${esc(c.collector)}</span>
+      version <span class="mono">${esc(c.version)}</span>. A critical field going absent is treated as
+      structural; a sparse-prone field is allowed to be missing up to its declared rate before it counts.</p>`;
+  }
+
+  /* ---------- boot ---------- */
+  async function loadLive() {
+    const [runs, items, fields] = await Promise.all([
+      api('/api/v1/runs').catch(() => []),
+      api('/api/v1/incidents').catch(() => []),
+      api('/api/v1/health/fields').catch(() => [])
+    ]);
+    renderRuns(runs);
+    renderIncidents(items);
+    renderFieldHealth(fields);
+  }
+
+  async function boot() {
+    try {
+      const h = await api('/api/v1/health');
+      $('mode').innerHTML = `<span class="dot ${h.fixture_mode ? 'amber' : ''}"></span>${h.fixture_mode ? 'fixture mode' : 'live api'}`;
+    } catch { $('mode').innerHTML = '<span class="dot amber"></span>offline'; }
+
+    try {
+      const d = await api('/api/v1/recorded-incident');
+      renderRecorded(d);
+      const el = $('collector');
+      el.hidden = false;
+      el.innerHTML = `<span class="dim">collector</span> ${esc(d.collector_id)}
+        <button title="Copy collector ID" aria-label="Copy collector ID">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 3.2A1.7 1.7 0 0 0 8.8 2.5H4.2A1.7 1.7 0 0 0 2.5 4.2v4.6c0 .74.47 1.37 1.13 1.6"/></svg>
+        </button>`;
+      el.querySelector('button').onclick = async () => {
+        try { await navigator.clipboard.writeText(d.collector_id); toast('Copied', d.collector_id); }
+        catch { toast('Copy failed', 'Select the ID and copy it manually', true); }
+      };
+      $('panel-link').href = 'https://brightdata.com/cp/scrapers/' + d.collector_id;
+    } catch (e) {
+      $('finding-lede').textContent = 'Could not load the recorded incident: ' + e.message;
+    }
+
+    try { renderContracts(await api('/api/v1/contracts')); }
+    catch { $('contracts').innerHTML = '<p class="muted">Contract unavailable.</p>'; }
+
+    await loadLive();
+    animate();
+  }
+
+  function animate() {
+    const targets = [...document.querySelectorAll('.reveal')];
+    const revealAll = () => targets.forEach(el => el.classList.add('in'));
+    if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    document.body.classList.add('animate');
+    const io = new IntersectionObserver((entries) => {
+      for (const en of entries) if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+    }, { rootMargin: '0px 0px -40px 0px' });
+    targets.forEach(el => io.observe(el));
+    // Failsafe: content is never allowed to stay hidden waiting on a scroll.
+    setTimeout(revealAll, 2600);
+  }
+
+  $('run').onclick = async () => {
+    const b = $('run');
+    b.disabled = true;
+    const label = b.innerHTML;
+    b.innerHTML = 'Running…';
+    try {
+      const res = await api('/api/v1/runs/trigger', { method: 'POST' });
+      const hosts = res.hosts || [];
+      const verdicts = hosts.map(h => `${h.host || ''} ${h.verdict}`.trim()).join(', ');
+      toast(`Run #${res.run_id} · ${res.row_count} rows`,
+        verdicts ? `Verdict: ${verdicts}` : 'No hosts classified');
+      await loadLive();
+    } catch (e) {
+      toast('Run failed', e.message, true);
+    } finally {
+      b.disabled = false;
+      b.innerHTML = label;
+    }
+  };
+
+  boot();
+})();
+</script>
 </body>
 </html>
