@@ -107,10 +107,23 @@ status: done.
 That is validation level 5 — collateral damage — observed for real on a live
 collector, unstaged. It is the strongest possible evidence that a preview is a
 proposal rather than a fix, and that --auto-approve can make a working scraper
-worse. The incident did not close as healed; it went back through the composer
-with the specific regression attached (samples/heal2_shopalto.json), and that
-second preview restores all five fields. Envelopes for every step are committed
-in samples/.
+worse.
+
+The incident did not close as healed. It went back through the composer with the
+specific regression attached (samples/heal2_shopalto.json), whose preview
+restored all five fields including price 151.24 and rating 4.1. We approved that
+too and ran verification again — and it regressed a second time. Two heals, two
+flawless previews, two production regressions, and the only thing that noticed
+either time was the verification run against the live target. The incident
+escalated with the full evidence chain rather than reporting a success that had
+not happened.
+
+A related finding, reported with envelopes rather than as a proven cause: the
+first approval's completed_steps end in save_new_template and the second's stop
+at user_approval. The first changed live behaviour, the second did not, and both
+returned status: done. That is the kind of gap only visible when something
+independently verifies production after an approval — which is what this project
+is for. Every envelope is committed in samples/.
 
 COLLECTION API. Scheduled runs use POST /dca/trigger and GET /dca/dataset, in
 backend/app/brightdata/client.py. All Bright Data network I/O lives in that one

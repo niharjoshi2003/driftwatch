@@ -90,7 +90,24 @@ So the incident did not close as healed. It went back through the composer with 
 
 > The last approved heal added description and image_url but dropped price and rating on the live run. Restore price as a numeric amount with currency, and rating as the numeric star score (empty if no reviews). Keep product_name, description, and image_url working.
 
-Second preview restores all five fields. Same loop, second attempt, driven by evidence rather than by hope.
+Second preview restores all five fields ([`samples/heal2_shopalto.json`](samples/heal2_shopalto.json)): `price: 151.24`, `rating: 4.1`. We approved it and ran a verification run.
+
+**It regressed again.** [`samples/run_shopalto_verified.json`](samples/run_shopalto_verified.json) returns the same three fields — `product_name`, `description`, `image_url`. Two consecutive heals, two flawless previews, two production regressions.
+
+So the incident **did not close as healed.** It escalated with the full evidence chain, which is the designed outcome when verification fails: `approved → verifying → escalated`, never `closed_healed`. A system that reported success here would have been lying twice.
+
+### A concrete finding about approval
+
+Comparing the two approval envelopes turned up something worth reporting to Bright Data. `completed_steps` differs:
+
+| Approval | Final steps |
+|---|---|
+| [heal 1](samples/approve_shopalto.json) | `... user_approval`, **`save_new_template`** |
+| [heal 2](samples/approve2_shopalto.json) | `... user_approval` |
+
+Heal 1 changed live behaviour; heal 2 did not, and its approval never reached `save_new_template`. That is consistent with approval and deployment being separate steps, and with `status: done` being returned either way. We are stating this as an observation with the envelopes attached, not a proven root cause — but it is precisely the kind of thing that only surfaces when something independently verifies production after an approval.
+
+**Which is the point.** Across both attempts, the only mechanism that noticed anything was wrong was the verification run against the live target. The preview said fine. The API said `done`. Production said otherwise.
 
 ### 4. Batch
 
@@ -255,7 +272,8 @@ Stated as decisions, because that is what they are.
 
 - **AI Flow endpoints are not wired in-process.** Heals are driven through the CLI. Driftwatch validates and gates them; it does not yet request them over HTTP.
 - **The live target is a product page, not a SaaS pricing page.** Linear's `create` failed twice at `code_generator` and we chose to spend the remaining time on the detection and validation engine rather than on retrying a target we do not control. The field contracts in `contracts/pricing_pages.yaml` describe the pricing-tier schema the engine was designed against; `contracts/day1_urls.json` holds the ten verified pricing URLs it is meant for.
-- **No live target broke on its own during the contest week.** The breakage we caught was caused by an approved heal regressing `price` and `rating` — real, unstaged, and arguably a better demonstration, but not the same as a vendor shipping a redesign.
+- **No live target broke on its own during the contest week.** The breakage we caught was caused by our own approved heals regressing `price` and `rating` — real and unstaged, but not the same as a vendor shipping a redesign.
+- **The demonstrated incident ends in `escalated`, not `closed_healed`.** Two heal attempts both regressed in production. That is the honest outcome of the loop working: verification caught what the previews missed, and the system refused to declare success. A green `closed_healed` on this collector would have required either luck or lying.
 - **Baseline window reduced** from the designed 20 runs to a shorter window, because the build started on 20 August.
 - Preview gating is levels 1, 2 and 5; see the table above for why.
 - Single user, no auth, one collector, no ML, no notifications, no mobile layout.

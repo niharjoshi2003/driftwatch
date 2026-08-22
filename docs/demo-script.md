@@ -146,9 +146,28 @@ incident detail timeline in the UI.
 > rating on the live run. Restore price as a numeric amount with currency, and
 > rating as the numeric star score."*
 >
-> Second preview brings all five fields back. Same loop, second attempt, driven
-> by evidence instead of hope. Every prompt, every preview, every validation
-> report and every decision is on the incident timeline.
+> Second preview brings all five fields back. Price, a hundred and fifty-one
+> twenty-four. Rating, four point one. I approved it and ran verification again.
+
+Switch to `samples/run_shopalto_verified.json`.
+
+> Still three fields. It regressed a second time.
+>
+> Two heals. Two perfect previews. Two production regressions. And the only thing
+> that noticed, either time, was the verification run — the preview said fine, the
+> API said done, production said otherwise.
+>
+> So the incident does not close as healed. It escalates, with every prompt,
+> every preview, every validation report and every decision on the timeline. A
+> system that reported success here would have been lying twice.
+
+**Screen:** the two approval envelopes side by side, `completed_steps` highlighted.
+
+> One more thing, which I only found because something was checking. The first
+> approval's completed steps end in `save_new_template`. The second one's don't —
+> they stop at `user_approval`. The first changed live behaviour and the second
+> didn't. I'm not claiming that's the root cause, but it's the kind of thing you
+> only ever see if something independently verifies production after an approval.
 
 ---
 
@@ -166,8 +185,13 @@ incident detail timeline in the UI.
 
 ---
 
-## If you have time for one more thing
+## Do not apologise for the ending
 
-Approve heal 2 and run the collector once more. If all five fields come back, you
-close the loop on camera with a genuine `closed_healed` and the video ends on a
-recovery instead of a retry. That is worth twenty minutes.
+The instinct will be to feel that ending on an escalation is weaker than ending
+on a fix. It isn't. Anyone can show a green checkmark; most of them will be
+showing `--auto-approve` and calling it self-healing. You are showing a loop that
+caught two silent production regressions that Bright Data's own preview and
+`status: done` both missed, and then refused to declare victory.
+
+Say it in that register — confident, not sheepish. "The system worked; the heal
+didn't, and the system is what I built."
