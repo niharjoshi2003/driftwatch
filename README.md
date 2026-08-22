@@ -219,6 +219,12 @@ pytest -q
 
 `FIXTURE_MODE=true` (the default) replays JSON captured **before** the contest from `backend/tests/fixtures/` so the loop can be exercised without spending credits. Those fixtures are captured API responses used as reference material, not contest code. Set `FIXTURE_MODE=false` with a collector ID for live runs.
 
+Note that fixture mode replays the *same* healthy run every time, so fill rates never move and no incident is ever opened — which is the correct verdict, not a bug. The incident view therefore opens on the **recorded shopalto regression**, assembled by `backend/app/recorded.py` from the captured envelopes in `samples/`. It is labelled `RECORDED` in the UI, it is not seeded into the database, and the field-loss lines in its timeline are computed from the files rather than written by hand.
+
+### Deployment
+
+`render.yaml` defines a free-tier Render web service running with `FIXTURE_MODE=true`, so the public instance needs no API token and spends no credits. The free tier sleeps when idle and SQLite is ephemeral there, so live run history resets on redeploy; the recorded incident is read from files and always available.
+
 ### API
 
 ```
@@ -230,6 +236,7 @@ GET  /api/v1/insights?host=&suppressed=       change feed, suppression visible
 GET  /api/v1/health/fields?host=              fill-rate series per field
 GET  /api/v1/incidents                        incident list
 GET  /api/v1/incidents/{id}                   full audit trail
+GET  /api/v1/recorded-incident                the real shopalto regression, from samples/
 POST /api/v1/incidents/{id}/validate-preview  validate a preview, advance the machine
 POST /api/v1/incidents/{id}/approve           human override on an escalation
 POST /api/v1/incidents/{id}/abandon           close without healing

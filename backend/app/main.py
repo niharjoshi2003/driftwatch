@@ -36,6 +36,18 @@ def health():
     }
 
 
+@app.get("/api/v1/recorded-incident")
+def recorded_incident():
+    """The real shopalto regression, assembled from the envelopes in samples/.
+
+    Fixture mode replays one healthy run, so a fresh database has no incidents to
+    inspect. This serves the captured evidence instead of leaving the UI empty.
+    """
+    from app.recorded import build
+
+    return build(ROOT / "samples")
+
+
 @app.get("/api/v1/contracts")
 def contracts():
     reg = load_contracts(settings.contracts_path)

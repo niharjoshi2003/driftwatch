@@ -5,34 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Driftwatch</title>
   <style>
-    :root { --bg:#0e1116; --card:#171b22; --line:#2a3140; --text:#e8edf5; --muted:#8b97a8; --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c542; }
+    :root { --bg:#0e1116; --card:#171b22; --line:#2a3140; --text:#e8edf5; --muted:#8b97a8; --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c542; --accent:#5b8def; }
     * { box-sizing: border-box; }
     body { margin:0; font:14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:var(--bg); color:var(--text); }
-    header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+    header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:16px; }
     h1 { font-size:16px; margin:0; letter-spacing:.04em; }
-    button { background:#243044; color:var(--text); border:1px solid var(--line); padding:8px 12px; cursor:pointer; }
-    button:hover { border-color:#4d5d78; }
-    main { display:grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 56px); }
+    h2 { font-size:15px; margin:0 0 4px; }
+    h3 { font-size:13px; margin:22px 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
+    h4 { font-size:12px; margin:12px 0 6px; color:var(--muted); }
+    button { background:#243044; color:var(--text); border:1px solid var(--line); padding:8px 12px; cursor:pointer; font:inherit; }
+    button:hover:not(:disabled) { border-color:#4d5d78; }
+    button:disabled { opacity:.5; cursor:default; }
+    main { display:grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 57px); }
     aside { border-right:1px solid var(--line); padding:12px; overflow:auto; }
     .inc { padding:10px; border:1px solid var(--line); margin-bottom:8px; cursor:pointer; background:var(--card); }
-    .inc.active { border-color:#5b8def; }
+    .inc:hover { border-color:#3d4759; }
+    .inc.active { border-color:var(--accent); }
     .state { color:var(--warn); }
-    .state.closed_healed { color:var(--ok); }
-    .state.escalated { color:var(--bad); }
+    .state.closed_healed, .state.approved, .state.baseline { color:var(--ok); }
+    .state.escalated, .state.rejected { color:var(--bad); }
+    .pill { display:inline-block; font-size:10px; letter-spacing:.1em; border:1px solid var(--line); padding:1px 6px; color:var(--muted); margin-left:6px; vertical-align:1px; }
     article { padding:20px 28px; overflow:auto; }
-    .tl { border-left:2px solid var(--line); margin-left:8px; padding-left:16px; }
-    .ev { margin:0 0 18px; }
+    .lede { color:var(--text); border-left:2px solid var(--warn); padding:8px 0 8px 14px; margin:14px 0 4px; max-width:70ch; }
+    .tl { border-left:2px solid var(--line); margin-left:8px; padding-left:18px; }
+    .ev { margin:0 0 20px; position:relative; }
+    .ev::before { content:''; position:absolute; left:-25px; top:5px; width:7px; height:7px; border-radius:50%; background:var(--line); }
+    .ev.bad::before { background:var(--bad); }
+    .ev.good::before { background:var(--ok); }
     .ev time { color:var(--muted); font-size:12px; }
-    pre { background:var(--card); border:1px solid var(--line); padding:12px; overflow:auto; white-space:pre-wrap; }
+    .note { color:var(--muted); margin-top:2px; }
+    .note.bad { color:var(--bad); }
+    pre { background:var(--card); border:1px solid var(--line); padding:12px; overflow:auto; white-space:pre-wrap; font-size:12.5px; margin:6px 0 0; }
+    table { border-collapse:collapse; margin:6px 0 0; font-size:12.5px; }
+    th, td { border:1px solid var(--line); padding:5px 10px; text-align:left; }
+    th { color:var(--muted); font-weight:600; }
+    .pass { color:var(--ok); }
+    .fail { color:var(--bad); }
     .muted { color:var(--muted); }
+    details summary { cursor:pointer; color:var(--muted); font-size:12px; }
   </style>
 </head>
 <body>
   <header>
     <h1>DRIFTWATCH · content vs structure</h1>
     <div>
-      <button id="run">Trigger run</button>
       <span id="meta" class="muted"></span>
+      <button id="run">Trigger run</button>
     </div>
   </header>
   <main>
@@ -41,37 +59,101 @@
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
-    async function j(url, opts){ const r = await fetch(url, opts); return r.json(); }
+    const esc = (s) => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const json = (v) => esc(typeof v === 'string' ? tryParse(v) : JSON.stringify(v, null, 2));
+    function tryParse(s){ try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s || ''; } }
+    async function api(url, opts){ const r = await fetch(url, opts); return r.json(); }
+
     async function refresh() {
-      const h = await j('/api/v1/health');
-      $('meta').textContent = (h.fixture_mode ? 'FIXTURE_MODE ' : 'LIVE ') + (h.collector_id || 'no collector');
-      const items = await j('/api/v1/incidents');
-      $('list').innerHTML = items.map(i =>
-        `<div class="inc" data-id="${i.id}"><div>#${i.id} ${i.host}</div><div class="state ${i.state}">${i.state}</div></div>`
-      ).join('') || '<p class="muted">No incidents yet. Trigger a run.</p>';
-      document.querySelectorAll('.inc').forEach(el => el.onclick = () => open(el.dataset.id));
+      const h = await api('/api/v1/health');
+      $('meta').textContent = (h.fixture_mode ? 'FIXTURE_MODE · ' : 'LIVE · ') + (h.collector_id || 'no collector');
+      const items = await api('/api/v1/incidents');
+      const rows = [`<div class="inc" data-recorded="1">
+          <div>shopalto.xyz <span class="pill">RECORDED</span></div>
+          <div class="state escalated">escalated</div>
+        </div>`];
+      for (const i of items) {
+        rows.push(`<div class="inc" data-id="${i.id}"><div>#${i.id} ${esc(i.host)}</div><div class="state ${esc(i.state)}">${esc(i.state)}</div></div>`);
+      }
+      if (!items.length) rows.push('<p class="muted">No live incidents. Fixture mode replays one healthy run, so nothing is flagged — which is the correct verdict.</p>');
+      $('list').innerHTML = rows.join('');
+      document.querySelectorAll('.inc').forEach(el => el.onclick = () => el.dataset.recorded ? openRecorded(el) : openIncident(el));
+      openRecorded(document.querySelector('.inc'));
     }
-    async function open(id) {
-      document.querySelectorAll('.inc').forEach(e => e.classList.toggle('active', e.dataset.id===id));
-      const d = await j('/api/v1/incidents/'+id);
+
+    function select(el){ document.querySelectorAll('.inc').forEach(e => e.classList.toggle('active', e === el)); }
+
+    async function openRecorded(el) {
+      select(el);
+      const d = await api('/api/v1/recorded-incident');
+      const steps = d.approval_step_difference;
       $('detail').innerHTML = `
-        <h2>Incident ${d.id} · ${d.host}</h2>
-        <p>state=<span class="state ${d.state}">${d.state}</span> outcome=${d.outcome || '—'} attempts=${d.attempt_count}</p>
+        <h2>${esc(d.host)} · <span class="state escalated">${esc(d.state)}</span> <span class="pill">RECORDED</span></h2>
+        <p class="muted">${esc(d.source)} · collector ${esc(d.collector_id)} · ${d.attempt_count} attempts · outcome ${esc(d.outcome)}</p>
+        <p class="lede">${esc(d.headline)}</p>
         <h3>Timeline</h3>
-        <div class="tl">${(d.timeline||[]).map(t => `<div class="ev"><div><strong>${t.state}</strong></div><time>${t.at||''}</time><div class="muted">${t.note||''}</div></div>`).join('')}</div>
-        <h3>Detection evidence</h3>
-        <pre>${pretty(d.detection_evidence)}</pre>
-        ${(d.attempts||[]).map(a => `
-          <h3>Attempt ${a.attempt_number} · ${a.decision} · ${a.prompt_length} chars</h3>
-          <pre>${esc(a.prompt||'')}</pre>
-          <h4>Validation</h4>
-          <pre>${pretty(a.validation_report)}</pre>
-        `).join('')}
-      `;
+        <div class="tl">${d.timeline.map(t => {
+          const lost = t.evidence && t.evidence.fields_lost_vs_preview;
+          const bad = (lost && lost.length) || t.state === 'escalated';
+          const good = t.state === 'approved' || t.state === 'baseline';
+          return `<div class="ev ${bad ? 'bad' : good ? 'good' : ''}">
+            <div><strong class="state ${esc(t.state)}">${esc(t.state)}</strong></div>
+            <div class="note ${bad ? 'bad' : ''}">${esc(t.note)}</div>
+            ${t.evidence ? `<details><summary>evidence</summary><pre>${json(t.evidence)}</pre></details>` : ''}
+          </div>`;
+        }).join('')}</div>
+        <h3>Approval envelopes differ</h3>
+        <table>
+          <tr><th>Attempt</th><th>completed_steps</th></tr>
+          <tr><td>1</td><td>${esc(steps.attempt_1.join(', '))}</td></tr>
+          <tr><td>2</td><td>${esc(steps.attempt_2.join(', '))}</td></tr>
+        </table>
+        <p class="muted" style="max-width:70ch">${esc(steps.note)}</p>`;
     }
-    function pretty(s){ try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s||''; } }
-    function esc(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
-    $('run').onclick = async () => { $('run').disabled = true; try { await j('/api/v1/runs/trigger', {method:'POST'}); await refresh(); } finally { $('run').disabled = false; } };
+
+    async function openIncident(el) {
+      select(el);
+      const d = await api('/api/v1/incidents/' + el.dataset.id);
+      $('detail').innerHTML = `
+        <h2>Incident ${d.id} · ${esc(d.host)}</h2>
+        <p class="muted">state <span class="state ${esc(d.state)}">${esc(d.state)}</span> · outcome ${esc(d.outcome || '—')} · attempts ${d.attempt_count}</p>
+        <h3>Timeline</h3>
+        <div class="tl">${(d.timeline||[]).map(t => `<div class="ev">
+            <div><strong class="state ${esc(t.state)}">${esc(t.state)}</strong></div>
+            <time>${esc(t.at)}</time>
+            <div class="note">${esc(t.note)}</div>
+          </div>`).join('')}</div>
+        <h3>Detection evidence</h3>
+        <pre>${json(d.detection_evidence)}</pre>
+        ${(d.attempts||[]).map(a => `
+          <h3>Attempt ${a.attempt_number} · ${esc(a.decision)} · ${a.prompt_length} chars</h3>
+          <pre>${esc(a.prompt)}</pre>
+          <h4>Validation</h4>
+          ${levels(a.validation_report)}
+        `).join('')}`;
+    }
+
+    function levels(report) {
+      let r = report;
+      if (typeof r === 'string') { try { r = JSON.parse(r); } catch { return `<pre>${esc(report)}</pre>`; } }
+      if (!r || !Array.isArray(r.levels)) return `<pre>${json(report)}</pre>`;
+      return `<table>
+        <tr><th>L</th><th>Check</th><th>Gating</th><th>Result</th><th>Detail</th></tr>
+        ${r.levels.map(l => `<tr>
+          <td>${l.level}</td><td>${esc(l.name)}</td><td class="muted">${esc(l.gating)}</td>
+          <td class="${l.passed ? 'pass' : 'fail'}">${l.passed ? 'pass' : 'fail'}</td>
+          <td class="muted">${esc(l.detail)}</td></tr>`).join('')}
+        <tr><td colspan="3"><strong>gate</strong></td>
+            <td class="${r.passed_gate ? 'pass' : 'fail'}"><strong>${r.passed_gate ? 'pass' : 'fail'}</strong></td>
+            <td class="muted">verification run is the hard gate</td></tr>
+      </table>`;
+    }
+
+    $('run').onclick = async () => {
+      $('run').disabled = true;
+      try { await api('/api/v1/runs/trigger', { method:'POST' }); await refresh(); }
+      finally { $('run').disabled = false; }
+    };
     refresh();
   </script>
 </body>
