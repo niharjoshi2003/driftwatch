@@ -93,8 +93,9 @@
         <p class="lede">${esc(d.headline)}</p>
         <h3>Timeline</h3>
         <div class="tl">${d.timeline.map(t => {
-          const lost = t.evidence && t.evidence.fields_lost_vs_preview;
-          const bad = (lost && lost.length) || t.state === 'escalated';
+          const cmp = t.evidence && t.evidence.field_comparison;
+          const missing = cmp ? cmp.regressed.length + cmp.never_delivered.length : 0;
+          const bad = missing > 0 || t.state === 'escalated';
           const good = t.state === 'approved' || t.state === 'baseline';
           return `<div class="ev ${bad ? 'bad' : good ? 'good' : ''}">
             <div><strong class="state ${esc(t.state)}">${esc(t.state)}</strong></div>

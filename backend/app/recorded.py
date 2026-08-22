@@ -42,6 +42,38 @@ def _fields(rows: list[dict]) -> list[str]:
     return sorted({key for row in rows for key in row if key != "input"})
 
 
+def _compare(baseline: list[str], preview: list[str], live: list[str]) -> dict[str, list[str]]:
+    """Split a failed heal into the two failures it actually contains.
+
+    A field the baseline collector already returned and the live run no longer
+    does has regressed: the heal broke something that worked. A field only the
+    preview ever showed was never delivered at all. Both are missing against the
+    preview, but only the first is a regression, and conflating them overstates
+    one claim while hiding the other.
+    """
+    return {
+        "regressed": [f for f in baseline if f not in live],
+        "never_delivered": [f for f in preview if f not in baseline and f not in live],
+        "delivered": [f for f in preview if f not in baseline and f in live],
+    }
+
+
+def _verdict(diff: dict[str, list[str]], live: list[str], repeat: bool) -> str:
+    if not diff["regressed"] and not diff["never_delivered"]:
+        return "live run matches the preview"
+    parts = [f"live run returns {len(live)} fields"]
+    if diff["regressed"]:
+        again = " again" if repeat else ""
+        parts.append(
+            f"{', '.join(diff['regressed'])} regressed{again} — returned before the heal, gone after"
+        )
+    if diff["never_delivered"]:
+        parts.append(f"{', '.join(diff['never_delivered'])} never arrived despite the preview")
+    if diff["delivered"]:
+        parts.append(f"{', '.join(diff['delivered'])} did land")
+    return ". ".join(parts)
+
+
 def build(samples_dir: Path) -> dict[str, Any]:
     run0 = _rows(_load(samples_dir, "run_shopalto.json"))
     heal1 = _load(samples_dir, "heal_shopalto.json") or {}
@@ -55,8 +87,8 @@ def build(samples_dir: Path) -> dict[str, Any]:
     preview1, live1 = _fields(_rows(heal1)), _fields(run1)
     preview2, live2 = _fields(_rows(heal2)), _fields(run2)
 
-    lost1 = [f for f in preview1 if f not in live1]
-    lost2 = [f for f in preview2 if f not in live2]
+    diff1 = _compare(baseline, preview1, live1)
+    diff2 = _compare(baseline, preview2, live2)
 
     timeline = [
         {
@@ -81,12 +113,8 @@ def build(samples_dir: Path) -> dict[str, Any]:
         },
         {
             "state": "verifying",
-            "note": (
-                f"live run returns {len(live1)} fields. LOST: {', '.join(lost1)}"
-                if lost1
-                else "live run matches the preview"
-            ),
-            "evidence": {"rows": run1, "fields_lost_vs_preview": lost1},
+            "note": _verdict(diff1, live1, repeat=False),
+            "evidence": {"rows": run1, "field_comparison": diff1},
         },
         {
             "state": "heal_requested",
@@ -105,12 +133,8 @@ def build(samples_dir: Path) -> dict[str, Any]:
         },
         {
             "state": "verifying",
-            "note": (
-                f"live run returns {len(live2)} fields. LOST AGAIN: {', '.join(lost2)}"
-                if lost2
-                else "live run matches the preview"
-            ),
-            "evidence": {"rows": run2, "fields_lost_vs_preview": lost2},
+            "note": _verdict(diff2, live2, repeat=True),
+            "evidence": {"rows": run2, "field_comparison": diff2},
         },
         {
             "state": "escalated",
@@ -129,9 +153,11 @@ def build(samples_dir: Path) -> dict[str, Any]:
         "outcome": "verification_failed",
         "attempt_count": 2,
         "headline": (
-            "Both heals returned previews containing every requested field. Both live "
-            "runs afterwards were missing fields the preview had shown. Only the "
-            "verification run caught it."
+            f"Both previews showed all {len(preview1)} requested fields. Both live runs "
+            f"afterwards dropped {', '.join(diff1['regressed'])}, which the collector "
+            f"returned before the heal, and never delivered "
+            f"{', '.join(diff1['never_delivered'])} at all. The previews were clean "
+            "every time. Only the verification run caught either failure."
         ),
         "approval_step_difference": {
             "attempt_1": approve1.get("completed_steps", []),

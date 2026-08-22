@@ -14,6 +14,13 @@
       "price",
       "input"
     ],
+    "fields_in_heal_preview": [
+      "product_name",
+      "price",
+      "description",
+      "image_url",
+      "rating"
+    ],
     "fields_after_heal": [
       "product_name",
       "description",
@@ -23,17 +30,39 @@
     "fields_gained": [
       "description",
       "image_url"
-    ]
+    ],
+    "fields_regressed": [
+      "price"
+    ],
+    "fields_never_delivered": [
+      "rating"
+    ],
+    "note": "fields_regressed were returned before the heal and are absent after it. fields_never_delivered appeared in the heal preview but in no live run. The preview showed every requested field, the live run did not, and that gap is what this project exists to catch."
   },
-  "row_count": 1,
-  "rows": [
-    {
-      "product_name": "Headphones Wireless Aurora",
-      "description": "Over-ear wireless headphones with 40 mm drivers, 32 hours of battery, and memory-foam cups that disappear on long sessions. A soft matte finish keeps fingerprints off and the folding hinge makes them easy to toss in a bag.",
-      "image_url": "https://shopalto.xyz/_next/image?url=https%3A%2F%2Floremflickr.com%2F800%2F800%2Fheadphones%2Caudio%3Flock%3D0011%26v%3D137&w=3840&q=75",
-      "input": {
-        "url": "https://shopalto.xyz/product/aurora-wireless-headphones"
+  "row_count": 2,
+  "rows": {
+    "before_heal": [
+      {
+        "product_name": "Wireless Headphones Aurora",
+        "price": {
+          "value": 172.4,
+          "currency": "USD",
+          "symbol": "$"
+        },
+        "input": {
+          "url": "https://shopalto.xyz/product/aurora-wireless-headphones"
+        }
       }
-    }
-  ]
+    ],
+    "after_heal": [
+      {
+        "product_name": "Headphones Wireless Aurora",
+        "description": "Over-ear wireless headphones with 40 mm drivers, 32 hours of battery, and memory-foam cups that disappear on long sessions. A soft matte finish keeps fingerprints off and the folding hinge makes them easy to toss in a bag.",
+        "image_url": "https://shopalto.xyz/_next/image?url=https%3A%2F%2Floremflickr.com%2F800%2F800%2Fheadphones%2Caudio%3Flock%3D0011%26v%3D137&w=3840&q=75",
+        "input": {
+          "url": "https://shopalto.xyz/product/aurora-wireless-headphones"
+        }
+      }
+    ]
+  }
 }

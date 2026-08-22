@@ -190,7 +190,7 @@ def _open_incident(session: Session, settings: Settings, collector_id: str, host
     if not auto_heal:
         inc.state = "escalated"
         inc.outcome = "ambiguous_sparse"
-        session.add(Timeline(incident_id=inc.id, state="escalated", note="sparse_prone absent-only â€” human review"))
+        session.add(Timeline(incident_id=inc.id, state="escalated", note="sparse_prone absent-only — human review"))
         session.commit()
         return inc
 
@@ -210,7 +210,7 @@ def _open_incident(session: Session, settings: Settings, collector_id: str, host
 
         envelope = FixtureClient(settings.fixtures_dir).heal_preview()
         preview = envelope.get("preview_result") or []
-        # HN preview is the wrong schema â€” the validator should reject it, which
+        # HN preview is the wrong schema — the validator should reject it, which
         # is the demo of "never approve on faith". Tests inject a good preview.
         report = validate_preview(preview if isinstance(preview, list) else [], registry)
         decision = "approved" if report.passed_gate else "rejected"

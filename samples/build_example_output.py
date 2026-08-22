@@ -54,12 +54,18 @@ def main() -> None:
     after = rows_of(load("run_shopalto_after_heal.json"))
     create = load("create_shopalto.json") or {}
 
+    preview = rows_of(load("heal_shopalto.json"))
     stage = "post_heal" if after else "pre_heal"
-    rows = after or before
 
     before_fields = field_names(before)
     after_fields = field_names(after)
+    preview_fields = field_names(preview)
+
     gained = [f for f in after_fields if f not in before_fields]
+    regressed = [f for f in before_fields if f not in after_fields]
+    never_delivered = [
+        f for f in preview_fields if f not in before_fields and f not in after_fields
+    ]
 
     document = {
         "product": "Driftwatch",
@@ -76,16 +82,28 @@ def main() -> None:
         "stage": stage,
         "schema_change": {
             "fields_before_heal": before_fields,
+            "fields_in_heal_preview": preview_fields,
             "fields_after_heal": after_fields,
             "fields_gained": gained,
+            "fields_regressed": regressed,
+            "fields_never_delivered": never_delivered,
+            "note": (
+                "fields_regressed were returned before the heal and are absent after "
+                "it. fields_never_delivered appeared in the heal preview but in no "
+                "live run. The preview showed every requested field, the live run did "
+                "not, and that gap is what this project exists to catch."
+            ),
         },
-        "row_count": len(rows),
-        "rows": rows,
+        "row_count": len(before) + len(after),
+        "rows": {"before_heal": before, "after_heal": after},
     }
 
     out = HERE / "example_output.json"
     out.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {out} â€” stage={stage}, rows={len(rows)}, gained={gained}")
+    print(
+        f"wrote {out} stage={stage} gained={gained} "
+        f"regressed={regressed} never_delivered={never_delivered}"
+    )
 
 
 if __name__ == "__main__":
