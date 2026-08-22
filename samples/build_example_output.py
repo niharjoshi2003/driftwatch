@@ -24,7 +24,7 @@ def load(name: str):
     path = HERE / name
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def rows_of(payload) -> list[dict]:
@@ -85,7 +85,7 @@ def main() -> None:
 
     out = HERE / "example_output.json"
     out.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {out} — stage={stage}, rows={len(rows)}, gained={gained}")
+    print(f"wrote {out} â€” stage={stage}, rows={len(rows)}, gained={gained}")
 
 
 if __name__ == "__main__":

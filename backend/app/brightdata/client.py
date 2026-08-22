@@ -69,7 +69,12 @@ class FixtureClient:
         self.dir = Path(fixtures_dir)
 
     def _load(self, name: str) -> Any:
-        return json.loads((self.dir / name).read_text(encoding="utf-8"))
+        # Some envelopes were captured with a byte-order mark, and raw_trigger
+        # has curl's write-out appended on a second line. Read the first JSON
+        # value and ignore the rest, so the captures stay byte-for-byte.
+        text = (self.dir / name).read_text(encoding="utf-8-sig")
+        value, _ = json.JSONDecoder().raw_decode(text.lstrip())
+        return value
 
     def trigger(self, collector_id: str, urls: list[dict[str, str]]) -> str:
         raw = self._load("raw_trigger.json")

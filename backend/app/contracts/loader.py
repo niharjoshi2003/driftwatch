@@ -36,7 +36,7 @@ class ContractRegistry:
 
 
 def load_contracts(path: str | Path) -> ContractRegistry:
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    data = yaml.safe_load(Path(path).read_text(encoding="utf-8-sig"))
     fields = []
     for raw in data.get("fields", []):
         desc = raw.get("description") or ""
