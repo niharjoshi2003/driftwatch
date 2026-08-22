@@ -55,7 +55,16 @@ and independent, a redesign breaks several fields at once.
 The part that matters is what happens next. Bright Data gives you a repair
 mechanism; it does not give you judgment. When Scraper Studio finishes a
 refactor it emails you "review and test before deploying to production" — and in
-practice nobody reviews, they click approve. Driftwatch is the reviewer. It
+practice nobody reviews, they click approve.
+
+This is not hypothetical. During the hackathon a heal on our own collector
+returned a preview with all five fields populated. We approved it. The live run
+afterwards had lost price and rating — the heal destroyed a field that had been
+working, and the preview never showed it. Approving on faith made a working
+scraper worse, on the organisers' own demo store, with every envelope committed
+in samples/. That single event is the argument for this entire project.
+
+Driftwatch is the reviewer. It
 composes a heal prompt inside the 1,000-character cap from the field's declared
 contract plus quantified evidence, validates the returned preview against those
 contracts and hand-verified anchors, and only then approves. Approval is not a
@@ -84,12 +93,24 @@ new collectors. Envelope: samples/create_shopalto.json.
 RUN. brightdata scraper run returned Wireless Headphones Aurora at $172.40 USD.
 Envelope: samples/run_shopalto.json.
 
-HEAL IN PLACE. The same collector was healed to add description, image_url and
-rating, with rating specified as empty when a product has no reviews — legitimate
-sparsity is exactly the case a naive null check gets wrong. Bright Data returned
-awaiting_approval with a one-row preview_result and emailed a review link. We did
-not use --auto-approve: Driftwatch validated the preview first, then approved,
-then re-ran to confirm the fields populate.
+HEAL IN PLACE — and the most important result in this submission. The same
+collector was healed to add description, image_url and rating. Bright Data
+returned awaiting_approval with a one-row preview_result showing all five fields
+populated, including price at 145.99 and rating at 4.7. The preview looked
+perfect, so we approved it.
+
+The live run afterwards came back with description and image_url gained and
+PRICE AND RATING GONE. The heal silently destroyed a field that had worked since
+the collector was created, and the preview never showed it. The API reported
+status: done.
+
+That is validation level 5 — collateral damage — observed for real on a live
+collector, unstaged. It is the strongest possible evidence that a preview is a
+proposal rather than a fix, and that --auto-approve can make a working scraper
+worse. The incident did not close as healed; it went back through the composer
+with the specific regression attached (samples/heal2_shopalto.json), and that
+second preview restores all five fields. Envelopes for every step are committed
+in samples/.
 
 COLLECTION API. Scheduled runs use POST /dca/trigger and GET /dca/dataset, in
 backend/app/brightdata/client.py. All Bright Data network I/O lives in that one
