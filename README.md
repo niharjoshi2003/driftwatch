@@ -24,6 +24,8 @@ When Scraper Studio finishes refactoring a collector, it sends an email that say
 
 That sentence is the entire problem. Something has to do the reviewing. In practice nobody does — they click approve, or they pass `--auto-approve` and never look. Driftwatch is the reviewer: it notices the breakage, quantifies it, describes it to the healer in under 1,000 characters, checks the proposed fix against declared field contracts and hand-verified anchors, and only then approves.
 
+**This is not hypothetical.** During this hackathon a heal on our own collector returned a flawless-looking preview, was approved, and then silently destroyed a field that had been working — see [How Scraper Studio is used](#3-heal-in-place--and-the-thing-that-justifies-this-entire-project) for the receipts. The preview lied. Approving on faith made a working scraper worse.
+
 Four steps sit between "a scraper broke" and "a scraper is fixed" — **notice, describe, validate, decide**. Scraper Studio covers the repair. Driftwatch covers the other four.
 
 ---
@@ -52,11 +54,43 @@ brightdata scraper run c_mt0hvfomh2bmennhd https://shopalto.xyz/product/aurora-w
 
 → `Wireless Headphones Aurora`, **$172.40 USD**. Envelope: [`samples/run_shopalto.json`](samples/run_shopalto.json).
 
-### 3. Heal in place
+### 3. Heal in place — and the thing that justifies this entire project
 
 The same collector was healed to add three fields — `description`, `image_url`, `rating` — with `rating` deliberately specified as *empty when a product has no reviews yet*, because legitimate sparsity is the case a naive null-check gets wrong.
 
-Bright Data returned `awaiting_approval` with a `preview_result`, and emailed a review link. **We did not `--auto-approve`.** The preview was validated first (see below), then approved, then the collector was re-run to confirm the new fields actually populate.
+Bright Data returned `awaiting_approval` with a preview and emailed a review link. **The preview looked perfect.** All five fields populated ([`samples/heal_shopalto.json`](samples/heal_shopalto.json)):
+
+```json
+{"product_name": "Headphones Wireless Aurora",
+ "price": {"value": 145.99, "currency": "USD"},
+ "description": "Over-ear wireless headphones with 40 mm drivers...",
+ "image_url": "https://shopalto.xyz/_next/image?url=...",
+ "rating": 4.7}
+```
+
+We approved it. Then we ran the collector against the live target, and got this ([`samples/run_shopalto_after_heal.json`](samples/run_shopalto_after_heal.json)):
+
+```json
+{"product_name": "Headphones Wireless Aurora",
+ "description": "Over-ear wireless headphones with 40 mm drivers...",
+ "image_url": "https://shopalto.xyz/_next/image?url=...",
+ "input": {"url": "https://shopalto.xyz/product/aurora-wireless-headphones"}}
+```
+
+**`price` and `rating` are gone.** The heal added the two fields we asked for and silently destroyed a field that had been working since the collector was created. The preview did not show it. The approval succeeded. The API reported `status: done`.
+
+This is not a staged demo. It happened to us, on the organisers' own demo store, and it is the single strongest argument for everything in this repository:
+
+- A preview is **a proposal, not a fix**. One sampled row cannot tell you what a template does across a live run.
+- `--auto-approve` would have shipped this silently. So would a human glancing at a preview that looked fine.
+- **Collateral damage is the failure nobody checks for.** Validation level 5 exists precisely for a fix that repairs one field and breaks another, and this is what that looks like in production.
+- The verification run is the hard gate. Approval only means Bright Data accepted the diff.
+
+So the incident did not close as healed. It went back through the composer with the specific failure attached, which is the retry path the design calls for — the most useful input a healer can get is what it did wrong last time ([`samples/heal2_shopalto.json`](samples/heal2_shopalto.json)):
+
+> The last approved heal added description and image_url but dropped price and rating on the live run. Restore price as a numeric amount with currency, and rating as the numeric star score (empty if no reviews). Keep product_name, description, and image_url working.
+
+Second preview restores all five fields. Same loop, second attempt, driven by evidence rather than by hope.
 
 ### 4. Batch
 
@@ -221,7 +255,7 @@ Stated as decisions, because that is what they are.
 
 - **AI Flow endpoints are not wired in-process.** Heals are driven through the CLI. Driftwatch validates and gates them; it does not yet request them over HTTP.
 - **The live target is a product page, not a SaaS pricing page.** Linear's `create` failed twice at `code_generator` and we chose to spend the remaining time on the detection and validation engine rather than on retrying a target we do not control. The field contracts in `contracts/pricing_pages.yaml` describe the pricing-tier schema the engine was designed against; `contracts/day1_urls.json` holds the ten verified pricing URLs it is meant for.
-- **The demonstrated heal is an enhancement, not a repair.** It added three fields to a working collector. The validation path exercised is identical, but no live target broke on its own during the contest week.
+- **No live target broke on its own during the contest week.** The breakage we caught was caused by an approved heal regressing `price` and `rating` — real, unstaged, and arguably a better demonstration, but not the same as a vendor shipping a redesign.
 - **Baseline window reduced** from the designed 20 runs to a shorter window, because the build started on 20 August.
 - Preview gating is levels 1, 2 and 5; see the table above for why.
 - Single user, no auth, one collector, no ML, no notifications, no mobile layout.
