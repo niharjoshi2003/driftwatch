@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: driftwatch
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.4
+      # Replay captured Bright Data responses. The public demo spends no credits
+      # and needs no API token.
+      - key: FIXTURE_MODE
+        value: "true"
+      - key: DATABASE_URL
+        value: sqlite:///./data/driftwatch.db
