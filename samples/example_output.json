@@ -7,25 +7,30 @@
     "created_at": "2026-08-19T19:38:37.990Z",
     "control_panel": "https://brightdata.com/cp/scrapers/c_mt0hvfomh2bmennhd"
   },
-  "stage": "pre_heal",
+  "stage": "post_heal",
   "schema_change": {
     "fields_before_heal": [
       "product_name",
       "price",
       "input"
     ],
-    "fields_after_heal": [],
-    "fields_gained": []
+    "fields_after_heal": [
+      "product_name",
+      "description",
+      "image_url",
+      "input"
+    ],
+    "fields_gained": [
+      "description",
+      "image_url"
+    ]
   },
   "row_count": 1,
   "rows": [
     {
-      "product_name": "Wireless Headphones Aurora",
-      "price": {
-        "value": 172.4,
-        "currency": "USD",
-        "symbol": "$"
-      },
+      "product_name": "Headphones Wireless Aurora",
+      "description": "Over-ear wireless headphones with 40 mm drivers, 32 hours of battery, and memory-foam cups that disappear on long sessions. A soft matte finish keeps fingerprints off and the folding hinge makes them easy to toss in a bag.",
+      "image_url": "https://shopalto.xyz/_next/image?url=https%3A%2F%2Floremflickr.com%2F800%2F800%2Fheadphones%2Caudio%3Flock%3D0011%26v%3D137&w=3840&q=75",
       "input": {
         "url": "https://shopalto.xyz/product/aurora-wireless-headphones"
       }
